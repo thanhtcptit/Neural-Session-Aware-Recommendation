@@ -55,10 +55,10 @@ class UserGruEval(BaseEval):
             self.model.month_period: batch_data[:, :-1, 4],
             self.model.keep_pr: 1
         }
-        logits, pr = self.sess.run(self.model.get_output(), feed_dict=feed_dict)
-        assert len(pr) == 1
+        pr = self.sess.run(self.model.get_output(), feed_dict=feed_dict)
+        assert len(pr) != 1
         batch_ranks, num_events = \
-            self.calculate_ranks(pr[0], batch_data[:, 1:, 1])
+            self.calculate_ranks(pr, batch_data[:, 1:, 1])
         batch_cp, batch_rr = self.evaluate(batch_ranks, [5, 10, 20])
         self.acc += batch_cp
         self.mrr += batch_rr

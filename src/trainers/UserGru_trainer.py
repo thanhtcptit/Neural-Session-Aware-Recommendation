@@ -26,7 +26,7 @@ class UserGruTrainer(BaseTrain):
     def run_training(self):
         for epoch in range(self.config.num_epoch):
             start = time()
-            self.data_loader.next_epoch()
+            self.data_loader.next_epoch(shuffle=True)
             epoch_loss = self.train_epoch()
 
             print('++ Epoch: {} - Loss: {:.5f} - Time: {:.5f} ++'.format(

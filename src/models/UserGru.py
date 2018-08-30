@@ -34,7 +34,7 @@ class UserGruModel(BaseModel):
             tf.int32, shape=[None, self._max_length])
         self.month_period = tf.placeholder(
             tf.int32, shape=[None, self._max_length])
-        self._keep_pr = tf.placeholder(tf.float32)
+        self.keep_pr = tf.placeholder(tf.float32)
 
         self.length = tf.reduce_sum(tf.sign(self.user), axis=1)
         self.global_step = tf.Variable(0, name="global_step",
@@ -67,8 +67,8 @@ class UserGruModel(BaseModel):
                            ['i', 'u', 'h', 'd', 'm']):
             embs[k] = tf.nn.embedding_lookup(E[k], v)
 
-        embs['u'] = tf.nn.dropout(embs['u'], self._keep_pr)
-        embs['i'] = tf.nn.dropout(embs['i'], self._keep_pr)
+        embs['u'] = tf.nn.dropout(embs['u'], self.keep_pr)
+        embs['i'] = tf.nn.dropout(embs['i'], self.keep_pr)
 
         with tf.variable_scope('rnn-cell'):
             if self._cell == 'gru':
@@ -193,4 +193,4 @@ class UserGruModel(BaseModel):
         return self.train_op, self.loss, self.global_step
 
     def get_output(self):
-        return self._logits, self._output_prob
+        return self._output_prob
