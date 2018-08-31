@@ -97,5 +97,5 @@ class Args:
 
     def get_data_config(self):
         with open(self.config_path, 'r') as f:
-            data = f.read().split('\n')[:-1]
+            data = f.read().split('\n')
         self.num_items, self.num_users, self.max_length = list(map(int, data))

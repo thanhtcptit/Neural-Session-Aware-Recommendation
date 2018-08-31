@@ -56,7 +56,7 @@ def _parse_cmd():
     # Learning params
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--keep_pr', type=float, default=0.5)
-    parser.add_argument('--num_epoch', type=int, default=30)
+    parser.add_argument('--num_epoch', type=int, default=50)
     parser.add_argument('--batch_size', type=int, default=50)
 
     # Logging & Summary
