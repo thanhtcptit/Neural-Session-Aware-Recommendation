@@ -20,6 +20,7 @@ class BaseEval:
 
         if init:
             # Initialize all variables of the graph
+            print('Initialing graph')
             self.init = tf.global_variables_initializer()
             self.sess.run(self.init)
 

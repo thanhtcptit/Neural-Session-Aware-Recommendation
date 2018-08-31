@@ -8,9 +8,6 @@ class UserGruEval(BaseEval):
     def __init__(self, sess, model, config, data_loader, logger=None, init_graph=False):
         super(UserGruEval, self).__init__(
             sess, model, config, data_loader, logger, init_graph)
-        self.acc = np.array([0.] * 3, dtype=np.float32)
-        self.mrr = np.array([0.] * 3, dtype=np.float32)
-        self.num_events_eval = 0
 
     def load(self, path):
         self.saver.restore(self.sess, path)
@@ -36,13 +33,19 @@ class UserGruEval(BaseEval):
 
     def run_evaluation(self):
         self.data_loader.next_epoch()
+        acc = np.array([0.] * 3, dtype=np.float32)
+        mrr = np.array([0.] * 3, dtype=np.float32)
+        num_events_eval = 0
         while self.data_loader.has_next():
-            self.eval_step()
+            batch_cp, batch_rr, batch_events = self.eval_step()
+            acc += batch_cp
+            mrr += batch_rr
+            num_events_eval += batch_events
 
-        self.acc /= self.num_events_eval
-        self.mrr /= self.num_events_eval
+        acc /= num_events_eval
+        mrr /= num_events_eval
 
-        return self.acc, self.mrr
+        return acc, mrr
 
     def eval_step(self):
         batch_data = self.data_loader.next_batch()
@@ -53,6 +56,7 @@ class UserGruEval(BaseEval):
             self.model.hour: batch_data[:, :-1, 2],
             self.model.day_of_week: batch_data[:, :-1, 3],
             self.model.month_period: batch_data[:, :-1, 4],
+            self.model.next_items: batch_data[:, 1:, 1],
             self.model.keep_pr: 1
         }
         pr = self.sess.run(self.model.get_output(), feed_dict=feed_dict)
@@ -60,6 +64,5 @@ class UserGruEval(BaseEval):
         batch_ranks, num_events = \
             self.calculate_ranks(pr, batch_data[:, 1:, 1])
         batch_cp, batch_rr = self.evaluate(batch_ranks, [5, 10, 20])
-        self.acc += batch_cp
-        self.mrr += batch_rr
-        self.num_events_eval += num_events
+
+        return batch_cp, batch_rr, num_events

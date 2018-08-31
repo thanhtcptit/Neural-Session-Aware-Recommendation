@@ -35,6 +35,8 @@ class DataLoader(object):
         self._num_events_eval = self._num_events - len(self._data)
         self._num_batch = int(float(len(self._data) - 1) / self._batch_size) + 1
 
+        print('--- Data ---')
+        print('Path: ', self._path)
         print('Num sessions: ', len(self._data))
         print('Num events: ', self._num_events)
 
