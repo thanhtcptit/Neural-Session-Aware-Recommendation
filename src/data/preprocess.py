@@ -163,6 +163,7 @@ def preprocess(stream):
             for iid in seq2_dict[user]:
                 uf.write("{},{},{}\n".format(
                     user2id[user], item2id[iid[1]], iid[0]))
+            uf.write('EOF')
 
 
 def cutting(origin_session):
@@ -202,7 +203,7 @@ def split_session():
         user_events = 0
         with open(USER_DATA_DIR + file, 'r') as f:
             for line in f:
-                if line == '\n':
+                if line == 'EOF':
                     cut_session, is_val_session, events_count = cutting(session)
                     sessions.extend(cut_session)
                     num_sessions += is_val_session
@@ -247,20 +248,19 @@ def split_session():
 def save_user_session(sessions):
     train_idx = len(sessions) - 2
     dev_idx = train_idx + 1
-
     with open(PROCESSED_DATA_DIR + '{}train{}'.format(prefix, suffix), 'a') as f1:
         for sess in sessions[:train_idx]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(prefix, suffix), 'a') as f1:
+    with open(PROCESSED_DATA_DIR + '{}test{}'.format(prefix, suffix), 'a') as f1:
         for sess in sessions[train_idx:dev_idx]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}test{}'.format(prefix, suffix), 'a') as f1:
+    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(prefix, suffix), 'a') as f1:
         for sess in sessions[dev_idx:]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
@@ -316,7 +316,6 @@ def remove_unseen_data():
                 continue
             test_events += 1
             users.add(int(data[0]))
-
     print('[TEST] Total events: ', test_events)
 
     dev_events = 0
@@ -329,8 +328,7 @@ def remove_unseen_data():
                 continue
             dev_events += 1
             users.add(int(data[0]))
-
-    print('[VAL] Total events: ', dev_events)
+    print('[DEV] Total events: ', dev_events)
 
     users_map = dict(zip(users, range(1, len(users) + 1)))
     items_map = dict(zip(items, range(1, len(items) + 1)))

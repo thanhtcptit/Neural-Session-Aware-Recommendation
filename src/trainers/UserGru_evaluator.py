@@ -11,8 +11,10 @@ class UserGruEval(BaseEval):
 
     def load(self, path):
         self.saver.restore(self.sess, path)
+        print('++ Load model from {} ++'.format(path))
 
-    def calculate_ranks(self, _pr, y_true):
+    @staticmethod
+    def calculate_ranks(_pr, y_true):
         y_true = np.reshape(y_true, [-1])
         rows_idx = [i for i in range(len(y_true)) if y_true[i] != 0]
         mask_rows_idx = [[i] for i in range(len(y_true)) if y_true[i] != 0]
@@ -21,7 +23,8 @@ class UserGruEval(BaseEval):
                  _pr[mask_rows_idx, mask_cols_idx]).sum(axis=1) + 1
         return ranks, len(rows_idx)
 
-    def evaluate(self, ranks, top):
+    @staticmethod
+    def evaluate(ranks, top):
         count_true = [0.] * len(top)
         rr = [0.] * len(top)
 

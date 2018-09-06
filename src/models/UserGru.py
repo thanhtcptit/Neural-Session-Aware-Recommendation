@@ -39,7 +39,7 @@ class UserGruModel(BaseModel):
             tf.int32, shape=[None, self._max_length])
         self.next_items = tf.placeholder(
             tf.int32, shape=[None, self.config.max_length])
-        self.labels = tf.one_hot(depth=self.config.num_items,
+        self.labels = tf.one_hot(depth=self.config.num_items + 1,
                                  indices=self.next_items, dtype=tf.int32)
         self.keep_pr = tf.placeholder(tf.float32)
 
@@ -130,9 +130,9 @@ class UserGruModel(BaseModel):
             last_dim = self._hidden_units + self._entity_embedding
             if 'context' in self._input_type:
                 last_dim += + 3 * self._time_embedding
-            self._w_fc = tf.get_variable(shape=[last_dim, self._num_items],
+            self._w_fc = tf.get_variable(shape=[last_dim, self._num_items + 1],
                                          name='w_fc', dtype=tf.float32)
-            self._b_fc = tf.get_variable(shape=[self._num_items],
+            self._b_fc = tf.get_variable(shape=[self._num_items + 1],
                                          name='b_fc', dtype=tf.float32)
 
         self._logits = tf.matmul(final_state, self._w_fc) + self._b_fc
