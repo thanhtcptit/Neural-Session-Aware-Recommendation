@@ -13,8 +13,6 @@ from src.utils.config import Args
 from src.utils.qpath import *
 
 
-
-
 def get_available_gpus():
     local_device_protos = device_lib.list_local_devices()
     print([x.name for x in local_device_protos if x.device_type == 'GPU'])
@@ -56,7 +54,7 @@ def _parse_cmd():
     # Learning params
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--keep_pr', type=float, default=0.5)
-    parser.add_argument('--num_epoch', type=int, default=50)
+    parser.add_argument('--num_epoch', type=int, default=30)
     parser.add_argument('--batch_size', type=int, default=50)
 
     # Logging & Summary

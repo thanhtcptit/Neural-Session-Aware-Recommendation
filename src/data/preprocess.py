@@ -2,7 +2,7 @@ import argparse
 import collections
 import itertools
 import math
-import os.path
+import os
 import shutil
 import sys
 import time
@@ -65,6 +65,7 @@ def _parse_args():
                         help='The maximum length allow per session')
     parser.add_argument('--max_session_len', type=int, default=10)
     parser.add_argument('--min_occur', type=int, default=10)
+    parser.add_argument('--min_session_per_user', type=int, default=5)
     parser.add_argument('--time_interval', type=int, default=3600)
     parser.add_argument('--u', type=int, default=0,
                         help='Position of user id')
@@ -91,6 +92,7 @@ TIME_INTERVAL = args.time_interval
 MAX_SESSION_LEN = args.max_session_len
 MAX_VALID_SEQ_LEN = args.max_valid_seq_len
 MIN_OCCURRENCES = args.min_occur
+MIN_SESSION_PER_USER = args.min_session_per_user
 OPERATION = args.op
 pu, pi, pt = args.u, args.i, args.t
 time_format = args.time_format
@@ -228,8 +230,7 @@ def split_session():
                     session = [data]
                     last_id = data[1]
 
-        # Only keep user who has at least 5 session
-        if num_sessions >= 5:
+        if num_sessions >= MIN_SESSION_PER_USER:
             num_origin_sessions += num_sessions
             num_cut_sessions += len(sessions)
             num_users += 1
@@ -288,6 +289,7 @@ def clean_data(path, file, train_items, users_map, items_map):
             f.write('{},{},{},{},{}\n'.format(users_map[int(data[0])],
                                               items_map[int(data[1])],
                                               data[2], data[3], data[4]))
+    os.remove(path + file)
 
 
 def remove_unseen_data():

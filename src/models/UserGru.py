@@ -27,8 +27,6 @@ class UserGruModel(BaseModel):
         # Input
         self._input_type = config.input
 
-        self.print_info()
-
         # Placeholder
         self.user = tf.placeholder(tf.int32, shape=[None, self._max_length])
         self.item = tf.placeholder(tf.int32, shape=[None, self._max_length])
@@ -64,6 +62,7 @@ class UserGruModel(BaseModel):
         self._output_prob = None
 
         self.build_model()
+        self.print_info()
 
     def print_info(self):
         print('--- Model info ---')
