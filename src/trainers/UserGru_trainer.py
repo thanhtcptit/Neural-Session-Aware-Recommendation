@@ -40,7 +40,8 @@ class UserGruTrainer(BaseTrain):
                     self.save(CHECKPOINT_DIR + self.config.name + '-best.ckpt')
                 print('++ Evaluate result on dev set ++')
                 for k, r, m in zip([5, 10, 20], acc, mrr):
-                    print('Recall@{}: {:.4f}  -  MRR@{}: {:.4f}'.format(k, r, k, m))
+                    print('Recall@{}: {:.4f}  -  MRR@{}: {:.4f}'.format(
+                        k, r, k, m))
 
     def train_epoch(self):
         losses = []
@@ -78,5 +79,5 @@ class UserGruTrainer(BaseTrain):
         print('++ Save model to {} ++'.format(save_path))
 
     def load(self, path):
-        load_path = self.saver.restore(self.sess, path)
-        print('++ Load model from {} ++'.format(load_path))
+        self.saver.restore(self.sess, path)
+        print('++ Load model from {} ++'.format(path))

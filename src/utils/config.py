@@ -14,6 +14,7 @@ class Args:
         self.mode = 'train'
         self.name = 'GRU'
         self.input = 'concat'
+        self.fusion_type = 'post'
 
         # Data path
         self.train_path = PROCESSED_DATA_DIR + 'clean-lastfm-train'
@@ -49,6 +50,7 @@ class Args:
         self.mode = args.mode
         self.name = args.name
         self.input = args.input
+        self.fusion_type = args.fusion_type
 
         # Data path
         self.train_path = PROCESSED_DATA_DIR + args.train_file
@@ -79,6 +81,7 @@ class Args:
     def save_model_config(self):
         with open(CHECKPOINT_DIR + self.name + '_config.txt', 'w') as f:
             f.write(str(self.input) + '\n')
+            f.write(str(self.fusion_type) + '\n')
             f.write(str(self.cell) + '\n')
             f.write(str(self.num_layers) + '\n')
             f.write(str(self.entity_embedding) + '\n')
@@ -90,10 +93,15 @@ class Args:
             name = self.name
         else:
             name = self.name[:self.name.rfind('-')]
-        with open(CHECKPOINT_DIR + name + '_config', 'r') as f:
-            data = map(int, f.read().split('\n'))
-            self.input, self.cell, self.num_layers, self.entity_embedding, \
+        with open(CHECKPOINT_DIR + name + '_config.txt', 'r') as f:
+            data = f.read().split('\n')
+            self.input, self.fusion_type, self.cell,\
+                self.num_layers, self.entity_embedding,\
                 self.time_embedding, self.hidden_units = data
+        self.num_layers = int(self.num_layers)
+        self.entity_embedding = int(self.entity_embedding)
+        self.time_embedding = int(self.time_embedding)
+        self.hidden_units = int(self.hidden_units)
 
     def get_data_config(self):
         with open(self.config_path, 'r') as f:

@@ -1,7 +1,4 @@
 import argparse
-import sys
-sys.path.append("../..")
-
 import tensorflow as tf
 from tensorflow.python.client import device_lib
 
@@ -34,6 +31,8 @@ def _parse_cmd():
     parser.add_argument('--input', choices=['concat', 'concat-context',
                                             'attention', 'attention-context'],
                         default='concat')
+    parser.add_argument('--fusion_type', choices=['pre', 'post'],
+                        default='post')
 
     # Path
     parser.add_argument('--train_file', type=str,
@@ -73,14 +72,15 @@ def run_training(args):
 
     if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index'):
         while True:
-            print('Already exist a model with the same name. Restore the old model?')
+            print('Already exist a model with the same name.'
+                  'Restore the old model?')
             choose = input('(y/n): ')
             if choose != 'y' and choose != 'n':
                 print('Wrong option')
             else:
                 break
         if choose == 'y':
-            trainer.load(args.name + '.ckpt')
+            trainer.load(os.path.join(CHECKPOINT_DIR, args.name + '.ckpt'))
             args.load_model_config()
 
     args.save_model_config()
@@ -88,6 +88,7 @@ def run_training(args):
 
 
 def run_evaluation(args):
+    args.load_model_config()
     sess = get_tensorflow_session()
     model = UserGruModel(args)
 

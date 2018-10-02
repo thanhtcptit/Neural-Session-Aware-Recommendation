@@ -26,6 +26,7 @@ class UserGruModel(BaseModel):
 
         # Input
         self._input_type = config.input
+        self._fusion_type = config.fusion_type
 
         # Placeholder
         self.user = tf.placeholder(tf.int32, shape=[None, self._max_length])
@@ -69,6 +70,7 @@ class UserGruModel(BaseModel):
         print('- Num users: ', self._num_users)
         print('- Num items: ', self._num_items)
         print('- Input type: ', self._input_type)
+        print('- Fusion type: ', self._fusion_type)
         print('- Max session length: ', self._max_length)
         print('- Entity embedding: ', self._entity_embedding)
         print('- Time embedding: ', self._time_embedding)
@@ -95,18 +97,69 @@ class UserGruModel(BaseModel):
 
         with tf.variable_scope('rnn-cell'):
             if self._cell == 'gru':
-                self._rnn_cell = MultiRNNCell([GRUCell(self._hidden_units)
-                                              for _ in range(self._num_layers)])
+                self._rnn_cell = MultiRNNCell(
+                    [GRUCell(self._hidden_units)
+                        for _ in range(self._num_layers)])
             elif self._cell == 'lstm':
-                self._rnn_cell = MultiRNNCell([LSTMCell(self._hidden_units)
-                                               for _ in range(self._num_layers)])
+                self._rnn_cell = MultiRNNCell(
+                    [LSTMCell(self._hidden_units)
+                        for _ in range(self._num_layers)])
             else:
-                self._rnn_cell = MultiRNNCell([RNNCell(self._hidden_units)
-                                               for _ in range(self._num_layers)])
+                self._rnn_cell = MultiRNNCell(
+                    [RNNCell(self._hidden_units)
+                        for _ in range(self._num_layers)])
 
-        output_states, _ = tf.nn.dynamic_rnn(self._rnn_cell, self._embs['i'],
-                                             sequence_length=self.length,
-                                             dtype=tf.float32)
+        if self._fusion_type == 'pre':
+            self._logits = self._pre_fusion()
+        else:
+            self._logits = self._post_fusion()
+
+        self._output_prob = tf.nn.softmax(self._logits)
+
+        self.loss = tf.nn.softmax_cross_entropy_with_logits(
+            labels=self.labels, logits=self._logits)
+        self.loss = tf.reduce_mean(self.loss)
+
+        # Optimizer
+        self.optimizer = tf.train.AdamOptimizer(
+            learning_rate=self.config.learning_rate)
+        self.train_op = self.optimizer.minimize(
+            self.loss, global_step=self.global_step)
+
+    def _pre_fusion(self):
+        if self._input_type == 'concat':
+            inputs = tf.concat([self._embs['i'], self._embs['u']], 2)
+        elif self._input_type == 'concat-context':
+            inputs = tf.concat([self._embs['i'], self._embs['u'],
+                                self._embs['h'], self._embs['d'],
+                                self._embs['m']], 2)
+        elif self._input_type == 'attention':
+            inputs = self._attention(self._embs['i'], self._embs['u'])
+        else:
+            inputs = self._attention_context(self._embs['i'], self._embs['u'],
+                                             self._embs['h'], self._embs['d'],
+                                             self._embs['m'])
+
+        output_states, _ = tf.nn.dynamic_rnn(
+                    self._rnn_cell, inputs,
+                    sequence_length=self.length,
+                    dtype=tf.float32)
+        output_states = tf.reshape(output_states, [-1, self._hidden_units])
+        with tf.name_scope('softmax'):
+            self._w_fc = tf.get_variable(shape=[self._hidden_units,
+                                         self._num_items + 1],
+                                         name='w_fc', dtype=tf.float32)
+            self._b_fc = tf.get_variable(shape=[self._num_items + 1],
+                                         name='b_fc', dtype=tf.float32)
+        logits = tf.matmul(output_states, self._w_fc) + self._b_fc
+
+        return logits
+
+    def _post_fusion(self):
+        output_states, _ = tf.nn.dynamic_rnn(
+            self._rnn_cell, self._embs['i'],
+            sequence_length=self.length,
+            dtype=tf.float32)
         if self._input_type == 'concat':
             final_state = tf.reshape(
                 tf.concat([output_states, self._embs['u']], -1),
@@ -115,15 +168,21 @@ class UserGruModel(BaseModel):
             final_state = tf.reshape(
                 tf.concat([output_states, self._embs['u'], self._embs['h'],
                            self._embs['d'], self._embs['m']], -1),
-                [-1, self._hidden_units
-                 + self._entity_embedding
-                 + 3 * self._time_embedding])
+                [-1, self._hidden_units + self._entity_embedding +
+                 3 * self._time_embedding])
         elif self._input_type == 'attention':
             final_state = self._attention(output_states, self._embs['u'])
+            final_state = tf.reshape(
+                final_state,
+                [-1, self._hidden_units + self._entity_embedding])
         else:
             final_state = self._attention_context(
                 output_states, self._embs['u'], self._embs['h'],
                 self._embs['d'], self._embs['m'])
+            final_state = tf.reshape(
+                final_state,
+                [-1, self._hidden_units + self._entity_embedding +
+                 3 * self._time_embedding])
 
         with tf.name_scope('softmax'):
             last_dim = self._hidden_units + self._entity_embedding
@@ -133,24 +192,16 @@ class UserGruModel(BaseModel):
                                          name='w_fc', dtype=tf.float32)
             self._b_fc = tf.get_variable(shape=[self._num_items + 1],
                                          name='b_fc', dtype=tf.float32)
+            logits = tf.matmul(final_state, self._w_fc) + self._b_fc
 
-        self._logits = tf.matmul(final_state, self._w_fc) + self._b_fc
-        self._output_prob = tf.nn.softmax(self._logits)
-
-        self.loss = tf.nn.softmax_cross_entropy_with_logits(
-            labels=self.labels, logits=self._logits)
-        self.loss = tf.reduce_mean(self.loss)
-
-        # Optimizer
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=self.config.learning_rate)
-        self.train_op = self.optimizer.minimize(self.loss, global_step=self.global_step)
+            return logits
 
     def _attention_context(self, item, user, hour, day, month):
         with tf.name_scope('attention'):
             self._V = {}
             self._b = {}
-            for x, k in zip([self._hidden_units, self._entity_embedding]
-                            + [self._time_embedding] * 3,
+            for x, k in zip([self._hidden_units, self._entity_embedding] +
+                            [self._time_embedding] * 3,
                             ['i', 'u', 'h', 'd', 'm']):
                 self._V[k] = tf.get_variable(shape=[x],
                                              name='V' + k, dtype=tf.float32)
@@ -177,9 +228,7 @@ class UserGruModel(BaseModel):
         final_input = []
         for i, x in enumerate([item, user, hour, day, month]):
             final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
-        return tf.reshape(tf.concat(final_input, -1),
-                          [-1, self._hidden_units + self._entity_embedding
-                           + 3 * self._time_embedding])
+        return tf.concat(final_input, -1)
 
     def _attention(self, item, user):
         with tf.name_scope('attention'):
@@ -189,7 +238,8 @@ class UserGruModel(BaseModel):
                 self._V[k] = tf.get_variable(shape=[x],
                                              name='V' + k, dtype=tf.float32)
             for k in ['i', 'u']:
-                self._b[k] = tf.get_variable(shape=[], name='b' + k, dtype=tf.float32)
+                self._b[k] = tf.get_variable(
+                    shape=[], name='b' + k, dtype=tf.float32)
 
         alpha = []
         for x, k in zip([item, user], ['i', 'u']):
@@ -208,8 +258,7 @@ class UserGruModel(BaseModel):
         final_input = []
         for i, x in enumerate([item, user]):
             final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
-        return tf.reshape(tf.concat(final_input, -1),
-                          [-1, self._hidden_units + self._entity_embedding])
+        return tf.concat(final_input, -1)
 
     def get_training_vars(self):
         return self.train_op, self.loss, self.global_step
