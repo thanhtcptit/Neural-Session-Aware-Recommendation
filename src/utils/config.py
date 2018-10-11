@@ -18,9 +18,8 @@ class Args:
 
         # Data path
         self.train_path = PROCESSED_DATA_DIR + 'clean-lastfm-train'
-        self.dev_path = PROCESSED_DATA_DIR + 'clean-lastfm-dev'
         self.test_path = PROCESSED_DATA_DIR + 'clean-lastfm-test'
-        self.config_path = PROCESSED_DATA_DIR + 'clean-lastfm-train-metadata'
+        self.data_stats = PROCESSED_DATA_DIR + 'clean-lastfm-train-metadata'
 
         # Data stats
         self.num_users = None
@@ -54,9 +53,11 @@ class Args:
 
         # Data path
         self.train_path = PROCESSED_DATA_DIR + args.train_file
-        self.dev_path = PROCESSED_DATA_DIR + args.dev_file
-        self.test_path = PROCESSED_DATA_DIR + args.test_file
-        self.config_path = PROCESSED_DATA_DIR + args.train_file + '-metadata'
+        if args.test_file is not None:
+            self.test_path = PROCESSED_DATA_DIR + args.test_file
+        else:
+            self.test_path = None
+        self.data_stats = PROCESSED_DATA_DIR + args.train_file + '-metadata'
 
         # Hyper params
         self.cell = args.cell
@@ -76,7 +77,7 @@ class Args:
         self.save_every = args.save_every
         self.eval_every = args.eval_every
 
-        self.get_data_config()
+        self.get_data_stats()
 
     def save_model_config(self):
         with open(CHECKPOINT_DIR + self.name + '_config.txt', 'w') as f:
@@ -103,7 +104,7 @@ class Args:
         self.time_embedding = int(self.time_embedding)
         self.hidden_units = int(self.hidden_units)
 
-    def get_data_config(self):
-        with open(self.config_path, 'r') as f:
+    def get_data_stats(self):
+        with open(self.data_stats, 'r') as f:
             data = f.read().split('\n')
         self.num_items, self.num_users, self.max_length = list(map(int, data))

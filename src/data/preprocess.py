@@ -8,10 +8,7 @@ import sys
 import time
 from calendar import timegm
 from datetime import datetime
-
 from tqdm import tqdm
-
-sys.path.append("../..")
 from src.utils.qpath import *
 
 
@@ -67,11 +64,11 @@ def _parse_args():
     parser.add_argument('--min_occur', type=int, default=10)
     parser.add_argument('--min_session_per_user', type=int, default=5)
     parser.add_argument('--time_interval', type=int, default=3600)
-    parser.add_argument('--u', type=int, default=0,
+    parser.add_argument('--pu', type=int, default=0,
                         help='Position of user id')
-    parser.add_argument('--i', type=int, default=5,
+    parser.add_argument('--pi', type=int, default=5,
                         help='Position of item id')
-    parser.add_argument('--t', type=int, default=1,
+    parser.add_argument('--pt', type=int, default=1,
                         help='Position of timestamp')
     parser.add_argument('--time_format', type=str,
                         default='%Y-%m-%dT%H:%M:%S%Z')
@@ -79,57 +76,34 @@ def _parse_args():
     parser.add_argument('--prefix', type=str, default='')
     parser.add_argument('--suffix', type=str, default='')
     parser.add_argument('--op', choices=['split', 'all'],
-                        help=
-                        '''
+                        help='''
                         [all] Preprocess data + Split session
                         [split] Split sessions
                         ''')
     return parser.parse_args()
 
 
-args = _parse_args()
-TIME_INTERVAL = args.time_interval
-MAX_SESSION_LEN = args.max_session_len
-MAX_VALID_SEQ_LEN = args.max_valid_seq_len
-MIN_OCCURRENCES = args.min_occur
-MIN_SESSION_PER_USER = args.min_session_per_user
-OPERATION = args.op
-pu, pi, pt = args.u, args.i, args.t
-time_format = args.time_format
-sep = args.sep
-prefix = args.prefix
-suffix = args.suffix
-
-
-def parse_data(path):
-    with open(path) as f:
+def parse_data(args):
+    with open(args.path) as f:
         for i, line in tqdm(enumerate(f)):
-            line_data = line.strip().split(sep)
-            if len(line_data) < 3:
-                print("couldn't parse line {} ('{}'), ignoring".format(
-                    i, line.strip()))
-                continue
+            line_data = line.strip().split(args.sep)
             try:
-                usr, item, ts = line_data[pu], line_data[pi], line_data[pt]
+                usr, item, ts = \
+                    line_data[args.pu], line_data[args.pi], line_data[args.pt]
+                if args.time_format is not None:
+                    ts = date2utc(ts, args.time_format)
+                yield (usr, item, ts)
             except IndexError:
-                print("IndexError: list index out of range for line {} ('{}'), "
-                      "ignoring".format(i, line.strip()))
+                print("IndexError: list index out of range for line {} ('{}'),"
+                      " ignoring".format(i, line.strip()))
                 continue
 
-            if time_format is not None:
-                ts = date2utc(ts, time_format)
-            yield (usr, item, ts)
 
-
-def preprocess(stream):
+def preprocess(args, stream):
     data = list()
     occurrences = collections.defaultdict(lambda: 0)
-
     # Read from stream
     for user, item, ts in stream:
-        # For lastfm as we discard events not in 2008
-        if 'lastfm' in prefix and get_year(ts) != 2008:
-            continue
         data.append((user, item, ts))
         occurrences[item] += 1
     seq_dict = collections.defaultdict(list)
@@ -137,7 +111,7 @@ def preprocess(stream):
 
     # Remove items that occurred infrequently
     for user, item, ts in tqdm(data):
-        if occurrences[item] < MIN_OCCURRENCES:
+        if occurrences[item] < args.min_occur:
             continue
         seq_dict[user].append([ts, item])
         user_item_dict[user].append(item)
@@ -157,56 +131,67 @@ def preprocess(stream):
     item2id = dict(zip(items, range(1, len(items) + 1)))
     user2id = dict(zip(users, range(1, len(users) + 1)))
 
-    if os.path.exists(USER_DATA_DIR):
-        shutil.rmtree(USER_DATA_DIR)
-    os.mkdir(USER_DATA_DIR)
+    user_data_dir = os.path.join(
+        PROCESSED_DATA_DIR, '{}user_dir{}'.format(args.prefix, args.suffix))
+    if os.path.exists(user_data_dir):
+        shutil.rmtree(user_data_dir)
+    os.makedirs(user_data_dir)
     for user in tqdm(seq2_dict.keys()):
-        with open(USER_DATA_DIR + str(user), 'w') as uf:
+        user_file = os.path.join(user_data_dir, str(user))
+        with open(user_file, 'w') as uf:
             for iid in seq2_dict[user]:
                 uf.write("{},{},{}\n".format(
                     user2id[user], item2id[iid[1]], iid[0]))
             uf.write('EOF')
 
 
-def cutting(origin_session):
+def cutting(args, origin_session):
     sessions = []
     is_val_session = 0
     events_count = 0
-    if 1 < len(origin_session) <= MAX_VALID_SEQ_LEN:
+    if 1 < len(origin_session) <= args.max_valid_seq_len:
         is_val_session = 1
         events_count = len(origin_session)
-        ns = int(float(len(origin_session) - 1) / MAX_SESSION_LEN) + 1
+        ns = int(float(len(origin_session) - 1) / args.max_session_len) + 1
         for s in range(ns):
-            start = s * MAX_SESSION_LEN
-            end = start + MAX_SESSION_LEN + 1
+            start = s * args.max_session_len
+            end = start + args.max_session_len + 1
             if len(origin_session[start:end]) > 1:
                 sessions.append(origin_session[start:end])
     return sessions, is_val_session, events_count
 
 
-def split_session():
+def split_session(args):
     num_origin_sessions = 0
     num_cut_sessions = 0
     num_events = 0
     num_users = 0
 
-    if os.path.exists(PROCESSED_DATA_DIR + '{}train{}'.format(prefix, suffix)):
+    user_data_dir = os.path.join(
+        PROCESSED_DATA_DIR, '{}user_dir{}'.format(args.prefix, args.suffix))
+    if os.path.exists(
+            PROCESSED_DATA_DIR + '{}train{}'.format(args.prefix, args.suffix)):
         try:
-            os.remove(PROCESSED_DATA_DIR + '{}train{}'.format(prefix, suffix))
-            os.remove(PROCESSED_DATA_DIR + '{}test{}'.format(prefix, suffix))
-            os.remove(PROCESSED_DATA_DIR + '{}dev{}'.format(prefix, suffix))
+            os.remove(PROCESSED_DATA_DIR + '{}train{}'.format(
+                args.prefix, args.suffix))
+            os.remove(PROCESSED_DATA_DIR + '{}test{}'.format(
+                args.prefix, args.suffix))
+            os.remove(PROCESSED_DATA_DIR + '{}dev{}'.format(
+                args.prefix, args.suffix))
         except OSError:
             pass
-    for i, file in tqdm(enumerate(sorted(os.listdir(USER_DATA_DIR)))):
+    for i, file in tqdm(enumerate(sorted(os.listdir(user_data_dir)))):
         sessions = []
         session = []
         last_id = -1
         num_sessions = 0
         user_events = 0
-        with open(USER_DATA_DIR + file, 'r') as f:
+        user_data_file = os.path.join(user_data_dir, file)
+        with open(user_data_file, 'r') as f:
             for line in f:
                 if line == 'EOF':
-                    cut_session, is_val_session, events_count = cutting(session)
+                    cut_session, is_val_session, events_count = \
+                        cutting(args, session)
                     sessions.extend(cut_session)
                     num_sessions += is_val_session
                     user_events += events_count
@@ -217,51 +202,56 @@ def split_session():
                     session.append(data)
                     last_id = data[1]
                 elif math.fabs(float(data[2]) - float(session[-1][2])) \
-                        < TIME_INTERVAL:
+                        < args.time_interval:
                     if last_id == data[1]:
                         continue
                     last_id = data[1]
                     session.append(data)
                 else:
-                    cut_session, is_val_session, events_count = cutting(session)
+                    cut_session, is_val_session, events_count = \
+                        cutting(args, session)
                     sessions.extend(cut_session)
                     num_sessions += is_val_session
                     user_events += events_count
                     session = [data]
                     last_id = data[1]
 
-        if num_sessions >= MIN_SESSION_PER_USER:
+        if num_sessions >= args.min_session_per_user:
             num_origin_sessions += num_sessions
             num_cut_sessions += len(sessions)
             num_users += 1
             num_events += user_events
-            save_user_session(sessions)
+            save_user_session(args, sessions)
 
     print('Total origin sessions', num_origin_sessions)
     print('Total cut sessions: ', num_cut_sessions)
-    print('Event per origin sessions ', float(num_events) / num_origin_sessions)
+    print('Event per origin sessions ',
+          float(num_events) / num_origin_sessions)
     print('Event per cut sessions ', float(num_events) / num_cut_sessions)
     print('Total events: ', num_events)
     print('Average sessions length: ', float(num_events) / num_origin_sessions)
     print('Sessions per user: ', float(num_origin_sessions) / num_users)
 
 
-def save_user_session(sessions):
+def save_user_session(args, sessions):
     train_idx = len(sessions) - 2
     dev_idx = train_idx + 1
-    with open(PROCESSED_DATA_DIR + '{}train{}'.format(prefix, suffix), 'a') as f1:
+    with open(PROCESSED_DATA_DIR + '{}train{}'.format(
+            args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[:train_idx]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}test{}'.format(prefix, suffix), 'a') as f1:
+    with open(PROCESSED_DATA_DIR + '{}test{}'.format(
+            args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[train_idx:dev_idx]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(prefix, suffix), 'a') as f1:
+    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
+            args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[dev_idx:]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
@@ -292,12 +282,13 @@ def clean_data(path, file, train_items, users_map, items_map):
     os.remove(path + file)
 
 
-def remove_unseen_data():
+def remove_unseen_data(args):
     users = set()
     items = set()
     train_items = collections.defaultdict(lambda: 0)
     train_events = 0
-    with open(PROCESSED_DATA_DIR + '{}train{}'.format(prefix, suffix), 'r') as f:
+    with open(PROCESSED_DATA_DIR + '{}train{}'.format(
+            args.prefix, args.suffix), 'r') as f:
         for line in f:
             if '-' in line:
                 continue
@@ -309,7 +300,8 @@ def remove_unseen_data():
     print('[TRAIN] Total events: ', train_events)
 
     test_events = 0
-    with open(PROCESSED_DATA_DIR + '{}test{}'.format(prefix, suffix), 'r') as f:
+    with open(PROCESSED_DATA_DIR + '{}test{}'.format(
+            args.prefix, args.suffix), 'r') as f:
         for line in f:
             if '-' in line:
                 continue
@@ -321,7 +313,8 @@ def remove_unseen_data():
     print('[TEST] Total events: ', test_events)
 
     dev_events = 0
-    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(prefix, suffix), 'r') as f:
+    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
+            args.prefix, args.suffix), 'r') as f:
         for line in f:
             if '-' in line:
                 continue
@@ -335,24 +328,29 @@ def remove_unseen_data():
     users_map = dict(zip(users, range(1, len(users) + 1)))
     items_map = dict(zip(items, range(1, len(items) + 1)))
 
-    clean_data(PROCESSED_DATA_DIR, '{}train{}'.format(prefix, suffix),
-               train_items, users_map, items_map)
-    clean_data(PROCESSED_DATA_DIR, '{}test{}'.format(prefix, suffix),
-               train_items, users_map, items_map)
-    clean_data(PROCESSED_DATA_DIR, '{}dev{}'.format(prefix, suffix),
-               train_items, users_map, items_map)
+    clean_data(PROCESSED_DATA_DIR, '{}train{}'.format(
+        args.prefix, args.suffix),
+        train_items, users_map, items_map)
+    clean_data(PROCESSED_DATA_DIR, '{}test{}'.format(
+        args.prefix, args.suffix),
+        train_items, users_map, items_map)
+    clean_data(PROCESSED_DATA_DIR, '{}dev{}'.format(
+        args.prefix, args.suffix),
+        train_items, users_map, items_map)
     with open(PROCESSED_DATA_DIR +
-              'clean-{}train{}-metadata'.format(prefix, suffix), 'w') as f:
+              'clean-{}train{}-metadata'.format(
+                args.prefix, args.suffix), 'w') as f:
         f.write(str(len(items)) + '\n')
         f.write(str(len(users)) + '\n')
-        f.write(str(MAX_SESSION_LEN))
+        f.write(str(args.max_session_len))
 
 
 if __name__ == '__main__':
+    args = _parse_args()
     # Preprocess data & create train - val - test
-    if OPERATION == 'all':
-        stream = parse_data(args.path)
-        preprocess(stream)
+    if args.op == 'all':
+        stream = parse_data(args)
+        preprocess(args, stream)
 
-    split_session()
-    remove_unseen_data()
+    split_session(args)
+    remove_unseen_data(args)

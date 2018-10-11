@@ -4,7 +4,6 @@ PROJECT_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 EXTERNAL_DATA_DIR = os.path.join(PROJECT_DIR, 'data/external/')
 INTERIM_DATA_DIR = os.path.join(PROJECT_DIR, 'data/interim/')
 PROCESSED_DATA_DIR = os.path.join(PROJECT_DIR, 'data/processed/')
-USER_DATA_DIR = PROCESSED_DATA_DIR + 'user_data/'
 RAW_DATA_DIR = os.path.join(PROJECT_DIR, 'data/raw/')
 CHECKPOINT_DIR = os.path.join(PROJECT_DIR, 'models/')
 SUMMARY_DIR = os.path.join(PROJECT_DIR, 'summary_dir/')

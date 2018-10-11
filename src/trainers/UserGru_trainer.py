@@ -16,9 +16,9 @@ class UserGruTrainer(BaseTrain):
     def __init__(self, sess, model, config, data_loader, logger=None):
         super(UserGruTrainer, self).__init__(
             sess, model, config, data_loader, logger)
-        if config.dev_path is not None:
-            self.dev_loader = DataLoader(config.dev_path, config)
-            self.evaluator = UserGruEval(sess, model, config, self.dev_loader)
+        if config.test_path is not None:
+            self.test_loader = DataLoader(config.test_path, config)
+            self.evaluator = UserGruEval(sess, model, config, self.test_loader)
             self.best_acc = 0
 
         self.sess.run(tf.global_variables_initializer())
@@ -32,13 +32,13 @@ class UserGruTrainer(BaseTrain):
             print('++ Epoch: {} - Loss: {:.5f} - Time: {:.5f} ++'.format(
                   epoch, epoch_loss, time() - start))
 
-            if self.config.dev_path is not None \
+            if self.config.test_path is not None \
                     and epoch % self.config.eval_every == 0:
                 acc, mrr = self.evaluator.run_evaluation()
                 if acc[0] > self.best_acc:
                     self.best_acc = acc[0]
                     self.save(CHECKPOINT_DIR + self.config.name + '-best.ckpt')
-                print('++ Evaluate result on dev set ++')
+                print('++ Evaluate result on val set ++')
                 for k, r, m in zip([5, 10, 20], acc, mrr):
                     print('Recall@{}: {:.4f}  -  MRR@{}: {:.4f}'.format(
                         k, r, k, m))

@@ -28,19 +28,17 @@ def _parse_cmd():
     parser.add_argument('--mode', choices=['train', 'test'],
                         default='train')
     parser.add_argument("--name", type=str, default='GRU')
-    parser.add_argument('--input', choices=['concat', 'concat-context',
-                                            'attention', 'attention-context'],
+    parser.add_argument('--input', choices=['concat', 'concat-context', 'sum',
+                                            'attention', 'attention-context',
+                                            'attention-global'],
                         default='concat')
     parser.add_argument('--fusion_type', choices=['pre', 'post'],
                         default='post')
 
     # Path
-    parser.add_argument('--train_file', type=str,
-                        default='clean-lastfm-train')
-    parser.add_argument('--dev_file', type=str,
-                        default='clean-lastfm-dev')
+    parser.add_argument('--train_file', type=str)
     parser.add_argument('--test_file', type=str,
-                        default='clean-lastfm-test')
+                        default=None)
 
     # Hyper params
     parser.add_argument('--cell', choices=['lstm', 'gru', 'rnn'],

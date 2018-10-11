@@ -133,12 +133,16 @@ class UserGruModel(BaseModel):
             inputs = tf.concat([self._embs['i'], self._embs['u'],
                                 self._embs['h'], self._embs['d'],
                                 self._embs['m']], 2)
+        elif self._input_type == 'sum':
+            inputs = self._embs['i'] + self._embs['u']
         elif self._input_type == 'attention':
             inputs = self._attention(self._embs['i'], self._embs['u'])
-        else:
+        elif self._input_type == 'attention-context':
             inputs = self._attention_context(self._embs['i'], self._embs['u'],
                                              self._embs['h'], self._embs['d'],
                                              self._embs['m'])
+        else:
+            inputs = self._attention_global(self._embs['i'], self._embs['u'])
 
         output_states, _ = tf.nn.dynamic_rnn(
                     self._rnn_cell, inputs,
@@ -164,18 +168,26 @@ class UserGruModel(BaseModel):
             final_state = tf.reshape(
                 tf.concat([output_states, self._embs['u']], -1),
                 [-1, self._hidden_units + self._entity_embedding])
+            last_dim = self._hidden_units + self._entity_embedding
         elif self._input_type == 'concat-context':
             final_state = tf.reshape(
                 tf.concat([output_states, self._embs['u'], self._embs['h'],
                            self._embs['d'], self._embs['m']], -1),
                 [-1, self._hidden_units + self._entity_embedding +
                  3 * self._time_embedding])
+            last_dim = self._hidden_units + self._entity_embedding +\
+                3 * self._time_embedding
+        elif self._input_type == 'sum':
+            final_state = tf.reshape(output_states + self._embs['u'],
+                                     [-1, self._hidden_units])
+            last_dim = self._hidden_units
         elif self._input_type == 'attention':
             final_state = self._attention(output_states, self._embs['u'])
             final_state = tf.reshape(
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding])
-        else:
+            last_dim = self._hidden_units + self._entity_embedding
+        elif self._input_type == 'attention-context':
             final_state = self._attention_context(
                 output_states, self._embs['u'], self._embs['h'],
                 self._embs['d'], self._embs['m'])
@@ -183,11 +195,17 @@ class UserGruModel(BaseModel):
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding +
                  3 * self._time_embedding])
+            last_dim = self._hidden_units + self._entity_embedding +\
+                3 * self._time_embedding
+        else:
+            final_state = self._attention_global(
+                output_states, self._embs['u'])
+            final_state = tf.reshape(
+                final_state,
+                [-1, self._hidden_units + self._entity_embedding])
+            last_dim = self._hidden_units + self._entity_embedding
 
         with tf.name_scope('softmax'):
-            last_dim = self._hidden_units + self._entity_embedding
-            if 'context' in self._input_type:
-                last_dim += + 3 * self._time_embedding
             self._w_fc = tf.get_variable(shape=[last_dim, self._num_items + 1],
                                          name='w_fc', dtype=tf.float32)
             self._b_fc = tf.get_variable(shape=[self._num_items + 1],
@@ -259,6 +277,17 @@ class UserGruModel(BaseModel):
         for i, x in enumerate([item, user]):
             final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
         return tf.concat(final_input, -1)
+
+    def _attention_global(self, item, user):
+        with tf.name_scope('attention-global'):
+            self._V = {}
+            for k in ['i', 'u']:
+                self._V[k] = tf.get_variable(shape=[1],
+                                             name='V' + k, dtype=tf.float32)
+            attention_w = tf.nn.softmax(list(self._V.values()))
+        item = item * attention_w[0]
+        user = user * attention_w[1]
+        return tf.concat([item, user], -1)
 
     def get_training_vars(self):
         return self.train_op, self.loss, self.global_step
