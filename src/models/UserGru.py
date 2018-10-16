@@ -50,10 +50,10 @@ class UserGruModel(BaseModel):
         self._E = {}
         self._embs = {}
         self._rnn_cell = None
-        self._w_fc = None
-        self._b_fc = None
-        self._V = {}
+        self._w = {}
         self._b = {}
+        self._Va = {}
+        self._ba = {}
 
         # Output
         self.loss = None
@@ -126,6 +126,18 @@ class UserGruModel(BaseModel):
         self.train_op = self.optimizer.minimize(
             self.loss, global_step=self.global_step)
 
+    def _feed_forward(self, inputs, output_size, key):
+        with tf.name_scope('feedforward_' + key):
+            if key in self._w.keys():
+                print('Variable with key w_%s already exists' % key)
+                exit(0)
+            self._w[key] = tf.get_variable(
+                shape=[int(inputs.shape[1]), output_size],
+                name='w_' + key, dtype=tf.float32)
+            self._b[key] = tf.get_variable(
+                shape=[output_size], name='b_' + key, dtype=tf.float32)
+        return tf.nn.xw_plus_b(inputs, self._w[key], self._b[key])
+
     def _pre_fusion(self):
         if self._input_type == 'concat':
             inputs = tf.concat([self._embs['i'], self._embs['u']], 2)
@@ -133,8 +145,8 @@ class UserGruModel(BaseModel):
             inputs = tf.concat([self._embs['i'], self._embs['u'],
                                 self._embs['h'], self._embs['d'],
                                 self._embs['m']], 2)
-        elif self._input_type == 'sum':
-            inputs = self._embs['i'] + self._embs['u']
+        elif self._input_type == 'multiply':
+            inputs = self._embs['i'] * self._embs['u']
         elif self._input_type == 'attention':
             inputs = self._attention(self._embs['i'], self._embs['u'])
         elif self._input_type == 'attention-context':
@@ -149,15 +161,11 @@ class UserGruModel(BaseModel):
                     sequence_length=self.length,
                     dtype=tf.float32)
         output_states = tf.reshape(output_states, [-1, self._hidden_units])
-        with tf.name_scope('softmax'):
-            self._w_fc = tf.get_variable(shape=[self._hidden_units,
-                                         self._num_items + 1],
-                                         name='w_fc', dtype=tf.float32)
-            self._b_fc = tf.get_variable(shape=[self._num_items + 1],
-                                         name='b_fc', dtype=tf.float32)
-        logits = tf.matmul(output_states, self._w_fc) + self._b_fc
 
-        return logits
+        self._logits = self._feed_forward(
+            output_states, self._num_items + 1, key='fc')
+
+        return self._logits
 
     def _post_fusion(self):
         output_states, _ = tf.nn.dynamic_rnn(
@@ -177,10 +185,22 @@ class UserGruModel(BaseModel):
                  3 * self._time_embedding])
             last_dim = self._hidden_units + self._entity_embedding +\
                 3 * self._time_embedding
-        elif self._input_type == 'sum':
-            final_state = tf.reshape(output_states + self._embs['u'],
-                                     [-1, self._hidden_units])
+        elif self._input_type == 'multiply':
+            mul_output = tf.reshape(output_states * self._embs['u'],
+                                    [-1, self._hidden_units])
+            final_state = self._feed_forward(
+                mul_output, self._hidden_units, key='ff1')
             last_dim = self._hidden_units
+        elif self._input_type == 'cf':
+            output_states = tf.reshape(output_states, [-1, self._hidden_units])
+            user_embs = tf.reshape(self._embs['u'],
+                                   [-1, self._entity_embedding])
+            cf_user = self._feed_forward(
+                user_embs, self._num_items + 1, key='ffu')
+            cf_item = self._feed_forward(
+                output_states, self._num_items + 1, key='ffi')
+            self._logits = cf_user + cf_item
+            return self._logits
         elif self._input_type == 'attention':
             final_state = self._attention(output_states, self._embs['u'])
             final_state = tf.reshape(
@@ -205,34 +225,28 @@ class UserGruModel(BaseModel):
                 [-1, self._hidden_units + self._entity_embedding])
             last_dim = self._hidden_units + self._entity_embedding
 
-        with tf.name_scope('softmax'):
-            self._w_fc = tf.get_variable(shape=[last_dim, self._num_items + 1],
-                                         name='w_fc', dtype=tf.float32)
-            self._b_fc = tf.get_variable(shape=[self._num_items + 1],
-                                         name='b_fc', dtype=tf.float32)
-            logits = tf.matmul(final_state, self._w_fc) + self._b_fc
+        self._logits = self._feed_forward(
+            final_state, self._num_items + 1, key='fc')
 
-            return logits
+        return self._logits
 
     def _attention_context(self, item, user, hour, day, month):
         with tf.name_scope('attention'):
-            self._V = {}
-            self._b = {}
             for x, k in zip([self._hidden_units, self._entity_embedding] +
                             [self._time_embedding] * 3,
                             ['i', 'u', 'h', 'd', 'm']):
-                self._V[k] = tf.get_variable(shape=[x],
-                                             name='V' + k, dtype=tf.float32)
+                self._Va[k] = tf.get_variable(shape=[x],
+                                              name='Va_' + k, dtype=tf.float32)
 
             for k in ['i', 'u', 'h', 'd', 'm']:
-                self._b[k] = tf.get_variable(shape=[], name='b' + k,
-                                             dtype=tf.float32)
+                self._ba[k] = tf.get_variable(shape=[], name='ba_' + k,
+                                              dtype=tf.float32)
 
         alpha = []
         for x, k in zip([item, user, hour, day, month],
                         ['i', 'u', 'h', 'd', 'm']):
             alpha.append(tf.sigmoid(tf.reduce_sum(
-                tf.cast(x, tf.float32) * self._V[k], axis=2) + self._b[k]))
+                tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
 
         attention_w = []
         for t in range(self._max_length):
@@ -250,19 +264,17 @@ class UserGruModel(BaseModel):
 
     def _attention(self, item, user):
         with tf.name_scope('attention'):
-            self._V = {}
-            self._b = {}
             for x, k in zip([self._entity_embedding] * 2, ['i', 'u']):
-                self._V[k] = tf.get_variable(shape=[x],
-                                             name='V' + k, dtype=tf.float32)
+                self._Va[k] = tf.get_variable(shape=[x],
+                                              name='Va_' + k, dtype=tf.float32)
             for k in ['i', 'u']:
-                self._b[k] = tf.get_variable(
-                    shape=[], name='b' + k, dtype=tf.float32)
+                self._ba[k] = tf.get_variable(
+                    shape=[], name='ba_' + k, dtype=tf.float32)
 
         alpha = []
         for x, k in zip([item, user], ['i', 'u']):
             alpha.append(tf.sigmoid(tf.reduce_sum(
-                tf.cast(x, tf.float32) * self._V[k], axis=2) + self._b[k]))
+                tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
 
         attention_w = []
         for t in range(self._max_length):
@@ -280,11 +292,10 @@ class UserGruModel(BaseModel):
 
     def _attention_global(self, item, user):
         with tf.name_scope('attention-global'):
-            self._V = {}
             for k in ['i', 'u']:
-                self._V[k] = tf.get_variable(shape=[1],
-                                             name='V' + k, dtype=tf.float32)
-            attention_w = tf.nn.softmax(list(self._V.values()))
+                self._Va[k] = tf.get_variable(shape=[1],
+                                              name='Va_' + k, dtype=tf.float32)
+            attention_w = tf.nn.softmax(list(self._Va.values()))
         item = item * attention_w[0]
         user = user * attention_w[1]
         return tf.concat([item, user], -1)

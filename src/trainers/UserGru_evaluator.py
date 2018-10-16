@@ -5,7 +5,8 @@ from src.utils.qpath import CHECKPOINT_DIR
 
 
 class UserGruEval(BaseEval):
-    def __init__(self, sess, model, config, data_loader, logger=None, init_graph=False):
+    def __init__(self, sess, model, config,
+                 data_loader, logger=None, init_graph=False):
         super(UserGruEval, self).__init__(
             sess, model, config, data_loader, logger, init_graph)
 

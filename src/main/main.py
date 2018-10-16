@@ -27,8 +27,9 @@ def _parse_cmd():
     # Running mode
     parser.add_argument('--mode', choices=['train', 'test'],
                         default='train')
-    parser.add_argument("--name", type=str, default='GRU')
-    parser.add_argument('--input', choices=['concat', 'concat-context', 'sum',
+    parser.add_argument("--name", type=str, default='UserGru')
+    parser.add_argument('--input', choices=['concat', 'concat-context',
+                                            'multiply', 'cf',
                                             'attention', 'attention-context',
                                             'attention-global'],
                         default='concat')
