@@ -67,6 +67,7 @@ class UserGruModel(BaseModel):
 
     def print_info(self):
         print('--- Model info ---')
+        print('- Model name: ', self.config.name)
         print('- Num users: ', self._num_users)
         print('- Num items: ', self._num_items)
         print('- Input type: ', self._input_type)
@@ -145,7 +146,7 @@ class UserGruModel(BaseModel):
             inputs = tf.concat([self._embs['i'], self._embs['u'],
                                 self._embs['h'], self._embs['d'],
                                 self._embs['m']], 2)
-        elif self._input_type == 'multiply':
+        elif self._input_type == 'mul':
             inputs = self._embs['i'] * self._embs['u']
         elif self._input_type == 'attention':
             inputs = self._attention(self._embs['i'], self._embs['u'])
@@ -153,8 +154,11 @@ class UserGruModel(BaseModel):
             inputs = self._attention_context(self._embs['i'], self._embs['u'],
                                              self._embs['h'], self._embs['d'],
                                              self._embs['m'])
-        else:
+        elif self._input_type == 'attention-global':
             inputs = self._attention_global(self._embs['i'], self._embs['u'])
+        else:
+            print('Unrecognize input type.Exit')
+            exit(0)
 
         output_states, _ = tf.nn.dynamic_rnn(
                     self._rnn_cell, inputs,
@@ -185,7 +189,12 @@ class UserGruModel(BaseModel):
                  3 * self._time_embedding])
             last_dim = self._hidden_units + self._entity_embedding +\
                 3 * self._time_embedding
-        elif self._input_type == 'multiply':
+        elif self._input_type == 'mul':
+            mul_output = tf.reshape(output_states * self._embs['u'],
+                                    [-1, self._hidden_units])
+            final_state = mul_output
+            last_dim = self._hidden_units
+        elif self._input_type == 'mul-ff':
             mul_output = tf.reshape(output_states * self._embs['u'],
                                     [-1, self._hidden_units])
             final_state = self._feed_forward(
@@ -217,13 +226,16 @@ class UserGruModel(BaseModel):
                  3 * self._time_embedding])
             last_dim = self._hidden_units + self._entity_embedding +\
                 3 * self._time_embedding
-        else:
+        elif self._input_type == 'attention-global':
             final_state = self._attention_global(
                 output_states, self._embs['u'])
             final_state = tf.reshape(
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding])
             last_dim = self._hidden_units + self._entity_embedding
+        else:
+            print('Unrecognize input type.Exit')
+            exit(0)
 
         self._logits = self._feed_forward(
             final_state, self._num_items + 1, key='fc')

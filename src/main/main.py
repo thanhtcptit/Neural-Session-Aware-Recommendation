@@ -29,7 +29,7 @@ def _parse_cmd():
                         default='train')
     parser.add_argument("--name", type=str, default='UserGru')
     parser.add_argument('--input', choices=['concat', 'concat-context',
-                                            'multiply', 'cf',
+                                            'mul', 'mul-ff', 'cf',
                                             'attention', 'attention-context',
                                             'attention-global'],
                         default='concat')

@@ -72,6 +72,8 @@ def _parse_args():
                         help='Position of timestamp')
     parser.add_argument('--time_format', type=str,
                         default='%Y-%m-%dT%H:%M:%S%Z')
+    parser.add_argument('--skip_first', type=bool,
+                        default=False)
     parser.add_argument('--sep', type=str, default='\t')
     parser.add_argument('--prefix', type=str, default='')
     parser.add_argument('--suffix', type=str, default='')
@@ -79,12 +81,15 @@ def _parse_args():
                         help='''
                         [all] Preprocess data + Split session
                         [split] Split sessions
+                        (assume the preprocess step had complete)
                         ''')
     return parser.parse_args()
 
 
 def parse_data(args):
     with open(args.path) as f:
+        if args.skip_first:
+            f.readline()
         for i, line in tqdm(enumerate(f)):
             line_data = line.strip().split(args.sep)
             try:
