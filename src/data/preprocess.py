@@ -248,14 +248,14 @@ def save_user_session(args, sessions):
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}test{}'.format(
+    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[train_idx:dev_idx]:
             for s in sess:
                 h, d, m = extract_time_context(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
+    with open(PROCESSED_DATA_DIR + '{}test{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[dev_idx:]:
             for s in sess:

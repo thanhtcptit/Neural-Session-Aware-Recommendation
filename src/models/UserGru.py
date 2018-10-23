@@ -208,7 +208,7 @@ class UserGruModel(BaseModel):
                 user_embs, self._num_items + 1, key='ffu')
             cf_item = self._feed_forward(
                 output_states, self._num_items + 1, key='ffi')
-            self._logits = cf_user + cf_item
+            self._logits = cf_user * cf_item
             return self._logits
         elif self._input_type == 'attention':
             final_state = self._attention(output_states, self._embs['u'])
@@ -276,7 +276,7 @@ class UserGruModel(BaseModel):
 
     def _attention(self, item, user):
         with tf.name_scope('attention'):
-            for x, k in zip([self._entity_embedding] * 2, ['i', 'u']):
+            for x, k in zip([self._entitygit _embedding] * 2, ['i', 'u']):
                 self._Va[k] = tf.get_variable(shape=[x],
                                               name='Va_' + k, dtype=tf.float32)
             for k in ['i', 'u']:
