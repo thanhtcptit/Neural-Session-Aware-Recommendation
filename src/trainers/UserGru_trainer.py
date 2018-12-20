@@ -39,7 +39,7 @@ class UserGruTrainer(BaseTrain):
                     self.best_acc = acc[0]
                     self.save(CHECKPOINT_DIR + self.config.name + '-best.ckpt')
                 print('++ Evaluate result on val set ++')
-                for k, r, m in zip([5, 10, 20], acc, mrr):
+                for k, r, m in zip([5, 20], acc, mrr):
                     print('Recall@{}: {:.4f}  -  MRR@{}: {:.4f}'.format(
                         k, r, k, m))
 
@@ -64,7 +64,6 @@ class UserGruTrainer(BaseTrain):
         feed_dict = {
             self.model.user: batch_data[:, :-1, 0],
             self.model.item: batch_data[:, :-1, 1],
-            self.model.hour: batch_data[:, :-1, 2],
             self.model.day_of_week: batch_data[:, :-1, 3],
             self.model.month_period: batch_data[:, :-1, 4],
             self.model.next_items: batch_data[:, 1:, 1],

@@ -44,7 +44,6 @@ class UserGruEval(BaseEval):
         feed_dict = {
             self.model.user: session[:, :-1, 0],
             self.model.item: session[:, :-1, 1],
-            self.model.hour: session[:, :-1, 2],
             self.model.day_of_week: session[:, :-1, 3],
             self.model.month_period: session[:, :-1, 4],
             self.model.next_items: session[:, 1:, 1],
@@ -82,7 +81,6 @@ class UserGruEval(BaseEval):
                 feed_dict = {
                     self.model.user: tmp[:, :-1, 0],
                     self.model.item: tmp[:, :-1, 1],
-                    self.model.hour: tmp[:, :-1, 2],
                     self.model.day_of_week: tmp[:, :-1, 3],
                     self.model.month_period: tmp[:, :-1, 4],
                     self.model.next_items: tmp[:, 1:, 1],
@@ -104,10 +102,7 @@ class UserGruEval(BaseEval):
         mrr = np.array([0.] * 2, dtype=np.float32)
         num_events_eval = 0
         while self.data_loader.has_next():
-            s1 = time()
             batch_cp, batch_rr, batch_events = self.eval_step()
-            print(time() - s1)
-            exit()
             acc += batch_cp
             mrr += batch_rr
             num_events_eval += batch_events
@@ -123,7 +118,6 @@ class UserGruEval(BaseEval):
         feed_dict = {
             self.model.user: batch_data[:, :-1, 0],
             self.model.item: batch_data[:, :-1, 1],
-            self.model.hour: batch_data[:, :-1, 2],
             self.model.day_of_week: batch_data[:, :-1, 3],
             self.model.month_period: batch_data[:, :-1, 4],
             self.model.next_items: batch_data[:, 1:, 1],

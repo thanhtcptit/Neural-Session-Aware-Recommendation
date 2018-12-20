@@ -1,11 +1,11 @@
 import sys
+sys.path.append('../..')
+
 
 import tensorflow as tf
 from tensorflow.contrib.rnn import *
 
 from src.base.base_model import BaseModel
-
-sys.path.append("../..")
 
 
 class UserGruModel(BaseModel):
@@ -31,7 +31,6 @@ class UserGruModel(BaseModel):
         # Placeholder
         self.user = tf.placeholder(tf.int32, shape=[None, self._max_length])
         self.item = tf.placeholder(tf.int32, shape=[None, self._max_length])
-        self.hour = tf.placeholder(tf.int32, shape=[None, self._max_length])
         self.day_of_week = tf.placeholder(
             tf.int32, shape=[None, self._max_length])
         self.month_period = tf.placeholder(
@@ -82,15 +81,15 @@ class UserGruModel(BaseModel):
     def build_model(self):
         with tf.variable_scope('embeddings'):
             for x, y, k in zip([self._num_items + 1,
-                                self._num_users + 1, 25, 8, 25],
+                                self._num_users + 1, 8, 25],
                                [self._entity_embedding] * 2 +
-                               [self._time_embedding] * 3,
-                               ['i', 'u', 'h', 'd', 'm']):
+                               [self._time_embedding] * 2,
+                               ['i', 'u', 'd', 'm']):
                 self._E[k] = tf.get_variable(shape=[x, y],
                                              name='E' + k, dtype=tf.float32)
-        for v, k in zip([self.item, self.user, self.hour,
+        for v, k in zip([self.item, self.user,
                          self.day_of_week, self.month_period],
-                        ['i', 'u', 'h', 'd', 'm']):
+                        ['i', 'u', 'd', 'm']):
             self._embs[k] = tf.nn.embedding_lookup(self._E[k], v)
 
         self._embs['u'] = tf.nn.dropout(self._embs['u'], self.keep_pr)
@@ -144,16 +143,14 @@ class UserGruModel(BaseModel):
             inputs = tf.concat([self._embs['i'], self._embs['u']], 2)
         elif self._input_type == 'concat-context':
             inputs = tf.concat([self._embs['i'], self._embs['u'],
-                                self._embs['h'], self._embs['d'],
-                                self._embs['m']], 2)
+                                self._embs['d'], self._embs['m']], 2)
         elif self._input_type == 'mul':
             inputs = self._embs['i'] * self._embs['u']
         elif self._input_type == 'attention':
             inputs = self._attention(self._embs['i'], self._embs['u'])
         elif self._input_type == 'attention-context':
             inputs = self._attention_context(self._embs['i'], self._embs['u'],
-                                             self._embs['h'], self._embs['d'],
-                                             self._embs['m'])
+                                             self._embs['d'], self._embs['m'])
         elif self._input_type == 'attention-global':
             inputs = self._attention_global(self._embs['i'], self._embs['u'])
         else:
@@ -161,9 +158,9 @@ class UserGruModel(BaseModel):
             exit(0)
 
         output_states, _ = tf.nn.dynamic_rnn(
-                    self._rnn_cell, inputs,
-                    sequence_length=self.length,
-                    dtype=tf.float32)
+            self._rnn_cell, inputs,
+            sequence_length=self.length,
+            dtype=tf.float32)
         output_states = tf.reshape(output_states, [-1, self._hidden_units])
 
         self._logits = self._feed_forward(
@@ -183,12 +180,12 @@ class UserGruModel(BaseModel):
             last_dim = self._hidden_units + self._entity_embedding
         elif self._input_type == 'concat-context':
             final_state = tf.reshape(
-                tf.concat([output_states, self._embs['u'], self._embs['h'],
+                tf.concat([output_states, self._embs['u'],
                            self._embs['d'], self._embs['m']], -1),
                 [-1, self._hidden_units + self._entity_embedding +
-                 3 * self._time_embedding])
-            last_dim = self._hidden_units + self._entity_embedding +\
-                3 * self._time_embedding
+                 2 * self._time_embedding])
+            last_dim = self._hidden_units + self._entity_embedding + \
+                2 * self._time_embedding
         elif self._input_type == 'mul':
             mul_output = tf.reshape(output_states * self._embs['u'],
                                     [-1, self._hidden_units])
@@ -230,14 +227,14 @@ class UserGruModel(BaseModel):
             last_dim = self._hidden_units + self._entity_embedding
         elif self._input_type == 'attention-context':
             final_state = self._attention_context(
-                output_states, self._embs['u'], self._embs['h'],
+                output_states, self._embs['u'],
                 self._embs['d'], self._embs['m'])
             final_state = tf.reshape(
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding +
-                 3 * self._time_embedding])
+                 2 * self._time_embedding])
             last_dim = self._hidden_units + self._entity_embedding +\
-                3 * self._time_embedding
+                2 * self._time_embedding
         elif self._input_type == 'attention-global':
             final_state = self._attention_global(
                 output_states, self._embs['u'])
@@ -254,35 +251,35 @@ class UserGruModel(BaseModel):
 
         return self._logits
 
-    def _attention_context(self, item, user, hour, day, month):
+    def _attention_context(self, item, user, day, month):
         with tf.name_scope('attention'):
             for x, k in zip([self._hidden_units, self._entity_embedding] +
-                            [self._time_embedding] * 3,
-                            ['i', 'u', 'h', 'd', 'm']):
+                            [self._time_embedding] * 2,
+                            ['i', 'u', 'd', 'm']):
                 self._Va[k] = tf.get_variable(shape=[x],
                                               name='Va_' + k, dtype=tf.float32)
 
-            for k in ['i', 'u', 'h', 'd', 'm']:
+            for k in ['i', 'u', 'd', 'm']:
                 self._ba[k] = tf.get_variable(shape=[], name='ba_' + k,
                                               dtype=tf.float32)
 
         alpha = []
-        for x, k in zip([item, user, hour, day, month],
-                        ['i', 'u', 'h', 'd', 'm']):
+        for x, k in zip([item, user, day, month],
+                        ['i', 'u', 'd', 'm']):
             alpha.append(tf.sigmoid(tf.reduce_sum(
                 tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
 
         attention_w = []
         for t in range(self._max_length):
             wt = []
-            for i in range(5):
+            for i in range(4):
                 wt.append(alpha[i][:, t])
             sum_exp = tf.reduce_sum(tf.exp(wt), axis=0)
             attention_w.append([tf.exp(w_) / sum_exp for w_ in wt])
 
         attention_w = tf.transpose(tf.stack(attention_w), [2, 0, 1])
         final_input = []
-        for i, x in enumerate([item, user, hour, day, month]):
+        for i, x in enumerate([item, user, day, month]):
             final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
         return tf.concat(final_input, -1)
 

@@ -69,7 +69,7 @@ target/
 # VS Code
 .vscode/
 
-# Spyder
+# Spydert
 .spyproject/
 
 # Jupyter NB Checkpoints
@@ -77,3 +77,5 @@ target/
 
 # exclude data from source control by default
 /src/main/run.sh
+/data/*
+/models/*

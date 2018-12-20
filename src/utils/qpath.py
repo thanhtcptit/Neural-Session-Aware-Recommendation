@@ -1,4 +1,6 @@
 import os
+
+
 HOME_DIR = os.path.expanduser('~') + '/'
 PROJECT_DIR = os.path.join(os.path.dirname(__file__), os.pardir, os.pardir)
 EXTERNAL_DATA_DIR = os.path.join(PROJECT_DIR, 'data/external/')

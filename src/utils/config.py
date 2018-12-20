@@ -1,11 +1,11 @@
+import sys
+sys.path.append('../..')
+
 import json
 import os
-import sys
 from easydict import EasyDict
 
 from src.utils.qpath import *
-
-sys.path.append("../..")
 
 
 class Args:

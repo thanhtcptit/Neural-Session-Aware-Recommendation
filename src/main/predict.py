@@ -1,6 +1,5 @@
 import sys
-sys.path.append('/home/nero/py/rnn-for-resys/src/')
-sys.path.append('/home/nero/py/rnn-for-resys/')
+sys.path.append('../../..')
 
 import tensorflow as tf
 import numpy as np

@@ -1,3 +1,6 @@
+import sys
+sys.path.append('../..')
+
 import argparse
 import tensorflow as tf
 from tensorflow.python.client import device_lib
@@ -98,7 +101,7 @@ def run_evaluation(args):
     evaluator.load(CHECKPOINT_DIR + args.name + '.ckpt')
     acc, mrr = evaluator.run_evaluation()
     print('++ Evaluate result on test set ++')
-    for k, r, m in zip([5, 10, 20], acc, mrr):
+    for k, r, m in zip([5, 20], acc, mrr):
         print('Recall@{}: {}  -  MRR@{}: {}'.format(k, r, k, m))
 
 
