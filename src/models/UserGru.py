@@ -216,6 +216,18 @@ class UserGruModel(BaseModel):
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding])
             last_dim = self._hidden_units + self._entity_embedding
+        elif self._input_type == 'attention-sum':
+            final_state = self._attention(
+                output_states, self._embs['u'], atype=self._input_type)
+            final_state = tf.reshape(
+                final_state, [-1, self._hidden_units])
+            last_dim = self._hidden_units
+        elif self._input_type == 'attention-ew':
+            final_state = self._attention_ew(output_states, self._embs['u'])
+            final_state = tf.reshape(
+                final_state,
+                [-1, self._hidden_units + self._entity_embedding])
+            last_dim = self._hidden_units + self._entity_embedding
         elif self._input_type == 'attention-context':
             final_state = self._attention_context(
                 output_states, self._embs['u'], self._embs['h'],
@@ -274,33 +286,37 @@ class UserGruModel(BaseModel):
             final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
         return tf.concat(final_input, -1)
 
-    def _attention(self, item, user):
+    def _attention(self, item, user, atype='attention'):
         with tf.name_scope('attention'):
-            for x, k in zip([self._entitygit _embedding] * 2, ['i', 'u']):
-                self._Va[k] = tf.get_variable(shape=[x],
-                                              name='Va_' + k, dtype=tf.float32)
-            for k in ['i', 'u']:
-                self._ba[k] = tf.get_variable(
-                    shape=[], name='ba_' + k, dtype=tf.float32)
+            self._Va['i'] = tf.get_variable(shape=[self._entity_embedding],
+                                            name='Va_i', dtype=tf.float32)
+            self._ba['i'] = tf.get_variable(
+                shape=[], name='ba_i', dtype=tf.float32)
+            item_alpha = tf.sigmoid(tf.reduce_sum(tf.cast(
+                item, tf.float32) * self._Va['i'], axis=2) + self._ba['i'])
+            item_alpha = tf.expand_dims(item_alpha, -1)
+            user_alpha = 1 - item_alpha
 
-        alpha = []
-        for x, k in zip([item, user], ['i', 'u']):
-            alpha.append(tf.sigmoid(tf.reduce_sum(
-                tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
-
-        attention_w = []
-        for t in range(self._max_length):
-            wt = []
-            for i in range(2):
-                wt.append(alpha[i][:, t])
-            sum_exp = tf.reduce_sum(tf.exp(wt), axis=0)
-            attention_w.append([tf.exp(w_) / sum_exp for w_ in wt])
-
-        attention_w = tf.transpose(tf.stack(attention_w), [2, 0, 1])
         final_input = []
-        for i, x in enumerate([item, user]):
-            final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
-        return tf.concat(final_input, -1)
+        if atype == 'attention':
+            for i, x in zip([item_alpha, user_alpha], [item, user]):
+                final_input.append(i * x)
+            final_input = tf.concat(final_input, -1)
+        else:
+            final_input = item_alpha * item + user_alpha * user
+        return final_input
+
+    def _attention_ew(self, item, user):
+        with tf.name_scope('attention'):
+            self._Va['i'] = tf.get_variable(shape=[self._entity_embedding],
+                                            name='Va_i', dtype=tf.float32)
+            self._ba['i'] = tf.get_variable(
+                shape=[self._entity_embedding],
+                name='ba_i', dtype=tf.float32)
+            item = tf.sigmoid(tf.cast(
+                item, tf.float32) * self._Va['i'] + self._ba['i'])
+            user = 1 - item
+        return tf.concat([item, user], -1)
 
     def _attention_global(self, item, user):
         with tf.name_scope('attention-global'):

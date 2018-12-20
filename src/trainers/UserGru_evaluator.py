@@ -1,7 +1,12 @@
+import sys
+sys.path.append('../..')
+
 import numpy as np
 
+from time import time
+
 from src.base.base_eval import BaseEval
-from src.utils.qpath import CHECKPOINT_DIR
+from src.utils.qpath import *
 
 
 class UserGruEval(BaseEval):
@@ -35,13 +40,74 @@ class UserGruEval(BaseEval):
             rr[i] += (1. / ranks[true_predict]).sum()
         return count_true, rr
 
+    def run_predict(self, session, pos):
+        feed_dict = {
+            self.model.user: session[:, :-1, 0],
+            self.model.item: session[:, :-1, 1],
+            self.model.hour: session[:, :-1, 2],
+            self.model.day_of_week: session[:, :-1, 3],
+            self.model.month_period: session[:, :-1, 4],
+            self.model.next_items: session[:, 1:, 1],
+            self.model.keep_pr: 1
+        }
+        pr = self.sess.run(self.model.get_output(), feed_dict=feed_dict)
+        assert len(pr) != 1
+        pr = pr[pos]
+        top_id = np.argpartition(pr, -10)[-10:]
+        top_id = top_id[np.argsort(pr[top_id])]
+        with open('/tmp/res.txt', 'w') as f:
+            f.write(' '.join(map(str, top_id.tolist())))
+
+    def run_test(self):
+        pos = 0
+        session = [[]]
+        with open(PROCESSED_DATA_DIR + 'clean-dev') as f:
+            for line in tqdm(f):
+                if '-' in line:
+                    session = [[]]
+                    pos = 0
+                    continue
+
+                u, i, *_ = line.strip().split(',')
+                session[0].append([u, i, 0, 0, 0])
+                if len(session[0]) == 1:
+                    continue
+
+                tmp = [session[0][:]]
+                l = len(tmp[0])
+                for i in range(11 - l):
+                    tmp[0].append([0, 0, 0, 0, 0])
+                tmp = np.array(tmp)
+
+                feed_dict = {
+                    self.model.user: tmp[:, :-1, 0],
+                    self.model.item: tmp[:, :-1, 1],
+                    self.model.hour: tmp[:, :-1, 2],
+                    self.model.day_of_week: tmp[:, :-1, 3],
+                    self.model.month_period: tmp[:, :-1, 4],
+                    self.model.next_items: tmp[:, 1:, 1],
+                    self.model.keep_pr: 1
+                }
+                pr = self.sess.run(
+                    self.model.get_output(), feed_dict=feed_dict)
+                assert len(pr) != 1
+                pr = pr[pos]
+                pos += 1
+                top_id = np.argpartition(pr, -10)[-10:]
+                top_id = top_id.tolist()
+                if session[0][pos][1] in top_id:
+                    print(session[0])
+
     def run_evaluation(self):
         self.data_loader.next_epoch()
-        acc = np.array([0.] * 3, dtype=np.float32)
-        mrr = np.array([0.] * 3, dtype=np.float32)
+        acc = np.array([0.] * 2, dtype=np.float32)
+        mrr = np.array([0.] * 2, dtype=np.float32)
         num_events_eval = 0
         while self.data_loader.has_next():
+            s1 = time()
             batch_cp, batch_rr, batch_events = self.eval_step()
+            print(time() - s1)
+            exit()
             acc += batch_cp
             mrr += batch_rr
             num_events_eval += batch_events
@@ -67,6 +133,6 @@ class UserGruEval(BaseEval):
         assert len(pr) != 1
         batch_ranks, num_events = \
             self.calculate_ranks(pr, batch_data[:, 1:, 1])
-        batch_cp, batch_rr = self.evaluate(batch_ranks, [5, 10, 20])
+        batch_cp, batch_rr = self.evaluate(batch_ranks, [5, 20])
 
         return batch_cp, batch_rr, num_events

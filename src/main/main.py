@@ -30,7 +30,9 @@ def _parse_cmd():
     parser.add_argument("--name", type=str, default='UserGru')
     parser.add_argument('--input', choices=['concat', 'concat-context',
                                             'mul', 'mul-ff', 'cf',
-                                            'attention', 'attention-context',
+                                            'attention', 'attention-sum',
+                                            'attention-context',
+                                            'attention-ew',
                                             'attention-global'],
                         default='concat')
     parser.add_argument('--fusion_type', choices=['pre', 'post'],

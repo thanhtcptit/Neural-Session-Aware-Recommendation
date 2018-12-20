@@ -61,6 +61,7 @@ def _parse_args():
     parser.add_argument('--max_valid_seq_len', type=int, default=500,
                         help='The maximum length allow per session')
     parser.add_argument('--max_session_len', type=int, default=10)
+    parser.add_argument('--min_session_len', type=int, default=2)
     parser.add_argument('--min_occur', type=int, default=10)
     parser.add_argument('--min_session_per_user', type=int, default=5)
     parser.add_argument('--time_interval', type=int, default=3600)
@@ -115,8 +116,10 @@ def preprocess(args, stream):
     user_item_dict = collections.defaultdict(list)
 
     # Remove items that occurred infrequently
+    dropped_events = 0
     for user, item, ts in tqdm(data):
         if occurrences[item] < args.min_occur:
+            dropped_events += 1
             continue
         seq_dict[user].append([ts, item])
         user_item_dict[user].append(item)
@@ -129,9 +132,10 @@ def preprocess(args, stream):
     # Create user vocab and item vocab
     items = set(itertools.chain(*user_item_dict.values()))
     users = set(seq2_dict.keys())
-    print('Num users: ', len(users))
-    print('Num items: ', len(items))
-    print('Num events: ', len(data))
+    print('First filter (item occur < {}): '.format(args.min_occur))
+    print('- Num users: ', len(users))
+    print('- Num items: ', len(items))
+    print('- Num events: ', len(data) - dropped_events)
 
     item2id = dict(zip(items, range(1, len(items) + 1)))
     user2id = dict(zip(users, range(1, len(users) + 1)))
@@ -161,7 +165,7 @@ def cutting(args, origin_session):
         for s in range(ns):
             start = s * args.max_session_len
             end = start + args.max_session_len + 1
-            if len(origin_session[start:end]) > 1:
+            if len(origin_session[start:end]) >= args.min_session_len:
                 sessions.append(origin_session[start:end])
     return sessions, is_val_session, events_count
 
@@ -228,14 +232,18 @@ def split_session(args):
             num_events += user_events
             save_user_session(args, sessions)
 
-    print('Total origin sessions', num_origin_sessions)
-    print('Total cut sessions: ', num_cut_sessions)
-    print('Event per origin sessions ',
+    print('Second filter ' +
+          '(session length >= {} and sessions per user > {}): '.format(
+            args.min_session_len, args.min_session_per_user))
+    print('- Total origin sessions', num_origin_sessions)
+    print('- Total cut sessions: ', num_cut_sessions)
+    print('- Event per origin sessions ',
           float(num_events) / num_origin_sessions)
-    print('Event per cut sessions ', float(num_events) / num_cut_sessions)
-    print('Total events: ', num_events)
-    print('Average sessions length: ', float(num_events) / num_origin_sessions)
-    print('Sessions per user: ', float(num_origin_sessions) / num_users)
+    print('- Event per cut sessions ', float(num_events) / num_cut_sessions)
+    print('- Total events: ', num_events)
+    print('- Average sessions length: ',
+          float(num_events) / num_origin_sessions)
+    print('- Sessions per user: ', float(num_origin_sessions) / num_users)
 
 
 def save_user_session(args, sessions):
@@ -276,14 +284,17 @@ def clean_data(path, file, train_items, users_map, items_map):
                 continue
             new_data.append(data)
 
+    event_count = 0
     with open(path + 'clean-' + file, 'w') as f:
         for data in new_data:
             if '-' in data:
                 f.write(data)
                 continue
+            event_count += 1
             f.write('{},{},{},{},{}\n'.format(users_map[int(data[0])],
                                               items_map[int(data[1])],
                                               data[2], data[3], data[4]))
+    print('- clean-{}: {} events'.format(file, event_count))
     os.remove(path + file)
 
 
@@ -291,7 +302,7 @@ def remove_unseen_data(args):
     users = set()
     items = set()
     train_items = collections.defaultdict(lambda: 0)
-    train_events = 0
+
     with open(PROCESSED_DATA_DIR + '{}train{}'.format(
             args.prefix, args.suffix), 'r') as f:
         for line in f:
@@ -301,10 +312,7 @@ def remove_unseen_data(args):
             users.add(int(data[0]))
             items.add(int(data[1]))
             train_items[int(data[1])] = 1
-            train_events += 1
-    print('[TRAIN] Total events: ', train_events)
 
-    test_events = 0
     with open(PROCESSED_DATA_DIR + '{}test{}'.format(
             args.prefix, args.suffix), 'r') as f:
         for line in f:
@@ -313,11 +321,8 @@ def remove_unseen_data(args):
             data = line.strip().split(',')
             if train_items[int(data[1])] == 0:
                 continue
-            test_events += 1
             users.add(int(data[0]))
-    print('[TEST] Total events: ', test_events)
 
-    dev_events = 0
     with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
             args.prefix, args.suffix), 'r') as f:
         for line in f:
@@ -326,12 +331,13 @@ def remove_unseen_data(args):
             data = line.strip().split(',')
             if train_items[int(data[1])] == 0:
                 continue
-            dev_events += 1
             users.add(int(data[0]))
-    print('[DEV] Total events: ', dev_events)
 
     users_map = dict(zip(users, range(1, len(users) + 1)))
     items_map = dict(zip(items, range(1, len(items) + 1)))
+    print('Third filter (remove item not exist in the train set): ')
+    print('- Num users: ', len(users))
+    print('- Num items: ', len(items))
 
     clean_data(PROCESSED_DATA_DIR, '{}train{}'.format(
         args.prefix, args.suffix),
