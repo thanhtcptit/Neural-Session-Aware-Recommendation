@@ -50,12 +50,34 @@ class UserGruPredict():
             self.model.next_items: session[:, 1:, 1],
             self.model.keep_pr: 1
         }
-        pr = self.sess.run(self.model.get_output(), feed_dict=feed_dict)
+        pr, attention = self.sess.run([self.model.get_output(),
+                                       self.model.get_attention_weight()],
+                                      feed_dict=feed_dict)
         assert len(pr) != 1
         pr = pr[pos]
-        top_id = np.argpartition(pr, -10)[-10:]
-        top_id = top_id[np.argsort(pr[top_id])]
-        return top_id
+        current_item = session[0][pos][1]
+        # print(session)
+        # print(attention)
+
+        print('===================')
+        if 'context' in self.config.input:
+            print('Item: ', attention[0][pos][0])
+            print('User: ', attention[0][pos][1])
+            print('Day of week: ', attention[0][pos][2])
+            print('Half month: ', attention[0][pos][3])
+        else:
+            print('Item attention: ', attention[0][0][pos][0])
+            print('User attention: ', attention[1][0][pos][0])
+
+        top_id = np.argpartition(pr, -12)[-12:]
+        top_id = top_id[np.argsort(pr[top_id])[::-1]]
+        top_id = list(top_id)
+        if 0 in top_id:
+            del top_id[top_id.index(0)]
+        if current_item in top_id:
+            del top_id[top_id.index(current_item)]
+
+        return top_id[:10]
 
     def run_test(self):
         pos = 0

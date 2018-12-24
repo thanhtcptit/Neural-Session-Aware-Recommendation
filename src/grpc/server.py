@@ -82,6 +82,7 @@ def serve(config):
 def main():
     args = Args()
     args.parse_args(_parse_cmd())
+    # args.name = 'UserAGru-context-best'
     args.load_model_config()
 
     serve(args)

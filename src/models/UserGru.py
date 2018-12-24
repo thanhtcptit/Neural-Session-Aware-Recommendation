@@ -53,6 +53,7 @@ class UserGruModel(BaseModel):
         self._b = {}
         self._Va = {}
         self._ba = {}
+        self._alpha = []
 
         # Output
         self.loss = None
@@ -269,18 +270,18 @@ class UserGruModel(BaseModel):
             alpha.append(tf.sigmoid(tf.reduce_sum(
                 tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
 
-        attention_w = []
+        self._alpha = []
         for t in range(self._max_length):
             wt = []
             for i in range(4):
                 wt.append(alpha[i][:, t])
             sum_exp = tf.reduce_sum(tf.exp(wt), axis=0)
-            attention_w.append([tf.exp(w_) / sum_exp for w_ in wt])
+            self._alpha.append([tf.exp(w_) / sum_exp for w_ in wt])
 
-        attention_w = tf.transpose(tf.stack(attention_w), [2, 0, 1])
+        self._alpha = tf.transpose(tf.stack(self._alpha), [2, 0, 1])
         final_input = []
         for i, x in enumerate([item, user, day, month]):
-            final_input.append(tf.expand_dims(attention_w[:, :, i], dim=2) * x)
+            final_input.append(tf.expand_dims(self._alpha[:, :, i], dim=2) * x)
         return tf.concat(final_input, -1)
 
     def _attention(self, item, user, atype='attention'):
@@ -293,7 +294,7 @@ class UserGruModel(BaseModel):
                 item, tf.float32) * self._Va['i'], axis=2) + self._ba['i'])
             item_alpha = tf.expand_dims(item_alpha, -1)
             user_alpha = 1 - item_alpha
-
+        self._alpha = [item_alpha, user_alpha]
         final_input = []
         if atype == 'attention':
             for i, x in zip([item_alpha, user_alpha], [item, user]):
@@ -330,3 +331,6 @@ class UserGruModel(BaseModel):
 
     def get_output(self):
         return self._output_prob
+
+    def get_attention_weight(self):
+        return self._alpha
