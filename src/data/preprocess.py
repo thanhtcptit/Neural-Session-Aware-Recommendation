@@ -38,23 +38,41 @@ def get_day(utc):
     return dt.day
 
 
-def extract_time_context(utc):
+def extract_time_context_utc(utc):
     dt = datetime.utcfromtimestamp(float(utc))
     hour = dt.hour
     month = dt.month
     week_day = dt.weekday()
     if month == 12:
         day_of_month = datetime(day=1, month=1, year=dt.year + 1) \
-                       - datetime(day=1, month=month, year=dt.year)
+            - datetime(day=1, month=month, year=dt.year)
     else:
         day_of_month = datetime(day=1, month=month + 1, year=dt.year) \
-                       - datetime(day=1, month=month, year=dt.year)
+            - datetime(day=1, month=month, year=dt.year)
     day_of_month = day_of_month.days
     if dt.day < day_of_month / 2:
         half_month_ped = month * 2 - 1
     else:
         half_month_ped = month * 2
     return hour, week_day, half_month_ped
+
+
+def extract_time_context_raw(timestamp, ts_format='%Y-%m-%d %H:%M:%S'):
+    dt = datetime.strptime(timestamp, ts_format)
+    month = dt.month
+    week_day = dt.weekday()
+    if month == 12:
+        day_of_month = datetime(day=1, month=1, year=dt.year + 1) \
+            - datetime(day=1, month=month, year=dt.year)
+    else:
+        day_of_month = datetime(day=1, month=month + 1, year=dt.year) \
+            - datetime(day=1, month=month, year=dt.year)
+    day_of_month = day_of_month.days
+    if dt.day < day_of_month / 2:
+        half_month_ped = month * 2 - 1
+    else:
+        half_month_ped = month * 2
+    return week_day, half_month_ped
 
 
 def _parse_args():
@@ -256,21 +274,21 @@ def save_user_session(args, sessions):
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[:train_idx]:
             for s in sess:
-                h, d, m = extract_time_context(s[2])
+                h, d, m = extract_time_context_utc(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
     with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[train_idx:dev_idx]:
             for s in sess:
-                h, d, m = extract_time_context(s[2])
+                h, d, m = extract_time_context_utc(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
     with open(PROCESSED_DATA_DIR + '{}test{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[dev_idx:]:
             for s in sess:
-                h, d, m = extract_time_context(s[2])
+                h, d, m = extract_time_context_utc(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
             f1.write('-----\n')
 

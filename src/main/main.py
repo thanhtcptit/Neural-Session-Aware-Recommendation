@@ -30,7 +30,7 @@ def _parse_cmd():
     # Running mode
     parser.add_argument('--mode', choices=['train', 'test'],
                         default='train')
-    parser.add_argument("--name", type=str, default='UserGru')
+    parser.add_argument("--name", type=str, default='UserAGru-best')
     parser.add_argument('--input', choices=['concat', 'concat-context',
                                             'mul', 'mul-ff', 'cf',
                                             'attention', 'attention-sum',
@@ -42,7 +42,7 @@ def _parse_cmd():
                         default='post')
 
     # Path
-    parser.add_argument('--train_file', type=str)
+    parser.add_argument('--train_file', type=str, default='clean-train')
     parser.add_argument('--test_file', type=str,
                         default=None)
 

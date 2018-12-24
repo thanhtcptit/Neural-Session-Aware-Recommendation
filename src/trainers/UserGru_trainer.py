@@ -1,4 +1,6 @@
 import sys
+sys.path.append("../..")
+
 from time import time
 
 import numpy as np
@@ -8,8 +10,6 @@ from src.base.base_train import BaseTrain
 from src.data_loader.data_loader import DataLoader
 from src.trainers.UserGru_evaluator import UserGruEval
 from src.utils.qpath import CHECKPOINT_DIR
-
-sys.path.append("../..")
 
 
 class UserGruTrainer(BaseTrain):

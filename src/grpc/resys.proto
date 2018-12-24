@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "io.grpc";
+option java_outer_classname = "ResysProto";
+option objc_class_prefix = "RS";
+
+package resys;
+
+service Resys {
+  rpc GenerateRecommend(stream Event) returns (stream Item) {}
+}
+
+message Event {
+  int32 user = 1;
+  int32 item = 2;
+  string date = 3;
+}
+
+message Item{
+  int32 id = 1;
+}
