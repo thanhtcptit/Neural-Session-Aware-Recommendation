@@ -32,8 +32,9 @@ def _parse_cmd():
                         default='train')
     parser.add_argument("--name", type=str, default='UserAGru-best')
     parser.add_argument('--input', choices=['concat', 'concat-context',
-                                            'mul', 'mul-ff', 'cf',
-                                            'attention', 'attention-sum',
+                                            'mul', 'sum', 'attention',
+                                            'attention-sum',
+                                            'attention-fixed-sum',
                                             'attention-context',
                                             'attention-ew',
                                             'attention-global'],
