@@ -330,9 +330,9 @@ class UserGruModel(BaseModel):
             attention_w = tf.nn.softmax(list(self._Va.values()))
         item = item * attention_w[0]
         user = user * attention_w[1]
-        final_input = None
+        final_input = tf.concat([item, user], -1)
         if atype == 'mul':
-            final_input = tf.concat([item, user], -1)
+            final_input = item * user
         elif atype == 'sum':
             final_input = item + user
         return final_input
