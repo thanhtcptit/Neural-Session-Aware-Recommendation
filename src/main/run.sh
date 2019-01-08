@@ -9,19 +9,22 @@
 
 # Lastfm
 # Concatenate - simple
-# python main.py --mode=train --name=UserGRU-pre --input=concat --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserGRU-pre --input=concat --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserGRU-post --input=concat --fusion_type=post --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Concatenate - attention
-# python main.py --mode=train --name=UserAGRU-pre --input=attention --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserAGRU-pre --input=attention --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserAGRU-post --input=attention --fusion_type=post --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Concatenate - attention fixed
-# python main.py --mode=train --name=UserAGGRU-pre --input=attention-global --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserAGGRU-pre --input=attention-global --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python main.py --mode=train --name=UserAGGRU-post --input=attention-global --fusion_type=post --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Mul - simple
 # python main.py --mode=train --name=UserGRU-mul-pre --input=mul --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # python main.py --mode=train --name=UserGRU-mul-post --input=mul --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Sum - simple
-python main.py --mode=train --name=UserGRU-sum-pre --input=sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
-python main.py --mode=train --name=UserGRU-sum-post --input=sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+# python main.py --mode=train --name=UserGRU-sum-pre --input=sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+# python main.py --mode=train --name=UserGRU-sum-post --input=sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Sum - attention
-python main.py --mode=train --name=UserAGRU-sum-pre --input=attention-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+# python main.py --mode=train --name=UserAGRU-sum-pre --input=attention-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Sum - attention fixed
-python main.py --mode=train --name=UserAGGRU-sum-pre --input=attention-fixed-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
-python main.py --mode=train --name=UserAGGRU-sum-post --input=attention-fixed-sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+# python main.py --mode=train --name=UserAGGRU-sum-pre --input=attention-fixed-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+# python main.py --mode=train --name=UserAGGRU-sum-post --input=attention-fixed-sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
