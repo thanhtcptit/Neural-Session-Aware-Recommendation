@@ -255,7 +255,7 @@ def split_session(args):
 
     print('Second filter ' +
           '(session length >= {} and sessions per user > {}): '.format(
-            args.min_session_len, args.min_session_per_user))
+              args.min_session_len, args.min_session_per_user))
     print('- Total origin sessions', num_origin_sessions)
     print('- Total cut sessions: ', num_cut_sessions)
     print('- Event per origin sessions ',
@@ -273,8 +273,7 @@ def save_user_session(args, sessions):
         dev_idx = train_idx + 1
     else:
         train_idx = int(len(sessions) * 0.9)
-        dev_idx = int(train_idx + len(sessions) * 0.05)
-
+        dev_idx = train_idx + int(len(sessions) * 0.05)
     with open(PROCESSED_DATA_DIR + '{}train{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[:train_idx]:
@@ -376,7 +375,7 @@ def remove_unseen_data(args):
         train_items, users_map, items_map)
     with open(PROCESSED_DATA_DIR +
               'clean-{}train{}-metadata'.format(
-                args.prefix, args.suffix), 'w') as f:
+                  args.prefix, args.suffix), 'w') as f:
         f.write(str(len(items)) + '\n')
         f.write(str(len(users)) + '\n')
         f.write(str(args.max_session_len))

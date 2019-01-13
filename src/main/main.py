@@ -36,6 +36,7 @@ def _parse_cmd():
                                             'attention-sum',
                                             'attention-fixed-sum',
                                             'attention-context',
+                                            'cf',
                                             'attention-global'],
                         default='concat')
     parser.add_argument('--fusion_type', choices=['pre', 'post', 'cf'],
