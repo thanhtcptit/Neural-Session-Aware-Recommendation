@@ -268,8 +268,13 @@ def split_session(args):
 
 
 def save_user_session(args, sessions):
-    train_idx = len(sessions) - 2
-    dev_idx = train_idx + 1
+    if len(sessions) <= 20:
+        train_idx = len(sessions) - 2
+        dev_idx = train_idx + 1
+    else:
+        train_idx = int(len(sessions) * 0.9)
+        dev_idx = int(train_idx + len(sessions) * 0.05)
+
     with open(PROCESSED_DATA_DIR + '{}train{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[:train_idx]:

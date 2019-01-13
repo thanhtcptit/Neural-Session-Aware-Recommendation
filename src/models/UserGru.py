@@ -112,8 +112,13 @@ class UserGruModel(BaseModel):
 
         if self._fusion_type == 'pre':
             self._logits = self._pre_fusion()
-        else:
+        elif self._fusion_type == 'post':
             self._logits = self._post_fusion()
+        elif self._fusion_type == 'cf':
+            self._logits = self._cf()
+        else:
+            print('Unkown fusion type')
+            exit()
 
         self._output_prob = tf.nn.softmax(self._logits)
 
@@ -249,6 +254,33 @@ class UserGruModel(BaseModel):
             final_state = tf.reshape(
                 final_state,
                 [-1, self._hidden_units + self._entity_embedding])
+        else:
+            print('Unrecognize input type.Exit')
+            exit(0)
+
+        self._logits = self._feed_forward(
+            final_state, self._num_items + 1, key='fc')
+
+        return self._logits
+
+    def _cf(self):
+        output_states, _ = tf.nn.dynamic_rnn(
+            self._rnn_cell, self._embs['i'],
+            sequence_length=self.length,
+            dtype=tf.float32)
+        output_states = tf.reshape(output_states, [-1, self._hidden_units])
+        user_embs = tf.reshape(self._embs['u'],
+                               [-1, self._entity_embedding])
+        cf_user = self._feed_forward(
+            user_embs, self._hidden_units, key='ffu')
+        cf_item = self._feed_forward(
+            output_states, self._hidden_units, key='ffi')
+        if self._input_type == 'concat':
+            final_state = tf.concat([cf_item, cf_user], -1)
+        elif self._input_type == 'mul':
+            final_state = cf_user * cf_item
+        elif self._input_type == 'sum':
+            final_state = cf_user + cf_item
         else:
             print('Unrecognize input type.Exit')
             exit(0)

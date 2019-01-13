@@ -18,10 +18,18 @@
 # python main.py --mode=train --name=UserGRU-mul-pre --input=mul --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # python main.py --mode=train --name=UserGRU-mul-post --input=mul --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # Sum - simple
-python main.py --mode=train --name=UserGRU-sum-pre --input=sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
-python main.py --mode=train --name=UserGRU-sum-post --input=sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+#python3 main.py --mode=train --name=UserGRU-sum-pre --input=sum --fusion_type=pre --train_file=clean-avito-train --test_file=clean-avito-dev;
+#python3 main.py --mode=train --name=UserGRU-sum-post --input=sum --train_file=clean-avito-train --test_file=clean-avito-dev --num_epoch=6;
 # Sum - attention
-python main.py --mode=train --name=UserAGRU-sum-pre --input=attention-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+#python3 main.py --mode=train --name=UserAGRU-sum-pre --input=attention-sum --fusion_type=pre --train_file=clean-avito-train --test_file=clean-avito-dev;
 # Sum - attention fixed
-python main.py --mode=train --name=UserAGGRU-sum-pre --input=attention-fixed-sum --fusion_type=pre --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
-python main.py --mode=train --name=UserAGGRU-sum-post --input=attention-fixed-sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+#python3 main.py --mode=train --name=UserAGGRU-sum-pre --input=attention-fixed-sum --fusion_type=pre --train_file=clean-avito-train --test_file=clean-avito-dev;
+# python3 main.py --mode=train --name=UserAGGRU-sum-post --input=attention-fixed-sum --train_file=clean-lastfm-train --test_file=clean-lastfm-dev --num_epoch=6;
+# Product
+# python3 main.py --mode=train --name=UserGRU-mul-pre --input=mul --fusion_type=pre --train_file=clean-avito-train --test_file=clean-avito-dev;
+
+# CF
+python3 main.py --mode=train --name=UserCF-concat --input=concat --fusion_type=cf --train_file=clean-avito-train --test_file=clean-avito-dev;
+python3 main.py --mode=train --name=UserCF-sum --input=sum --fusion_type=cf --train_file=clean-avito-train --test_file=clean-avito-dev;
+python3 main.py --mode=train --name=UserCF-mul --input=mul --fusion_type=cf --train_file=clean-avito-train --test_file=clean-avito-dev;
+shutdown -P +5;
