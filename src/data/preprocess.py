@@ -198,7 +198,7 @@ def split_session(args):
     num_users = 0
 
     user_data_dir = os.path.join(
-        PROCESSED_DATA_DIR, '{}user_dir{}'.format(args.prefix, args.suffix))
+        PROCESSED_DATA_DIR, '{}user_dir'.format(args.prefix))
     if os.path.exists(
             PROCESSED_DATA_DIR + '{}train{}'.format(args.prefix, args.suffix)):
         try:
@@ -209,6 +209,7 @@ def split_session(args):
             os.remove(PROCESSED_DATA_DIR + '{}dev{}'.format(
                 args.prefix, args.suffix))
         except OSError:
+            print('OSError')
             pass
     for i, file in tqdm(enumerate(sorted(os.listdir(user_data_dir)))):
         sessions = []
@@ -265,36 +266,46 @@ def split_session(args):
     print('- Average sessions length: ',
           float(num_events) / num_origin_sessions)
     print('- Sessions per user: ', float(num_origin_sessions) / num_users)
+    global tmp
+    print(tmp)
 
 
 def save_user_session(args, sessions):
+    global tmp
     if len(sessions) <= 20:
         train_idx = len(sessions) - 2
         dev_idx = train_idx + 1
     else:
         train_idx = int(len(sessions) * 0.9)
         dev_idx = train_idx + int(len(sessions) * 0.05)
+
     with open(PROCESSED_DATA_DIR + '{}train{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[:train_idx]:
+            flag = False
             for s in sess:
+                if get_month(s[2]) not in [5] or get_day(s[2]) < 17:
+                    flag = True
+                    break
                 h, d, m = extract_time_context_utc(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
-            f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
-            args.prefix, args.suffix), 'a') as f1:
-        for sess in sessions[train_idx:dev_idx]:
-            for s in sess:
-                h, d, m = extract_time_context_utc(s[2])
-                f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
-            f1.write('-----\n')
-    with open(PROCESSED_DATA_DIR + '{}test{}'.format(
-            args.prefix, args.suffix), 'a') as f1:
-        for sess in sessions[dev_idx:]:
-            for s in sess:
-                h, d, m = extract_time_context_utc(s[2])
-                f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
-            f1.write('-----\n')
+            if not flag:
+                tmp += 1
+                f1.write('-----\n')
+    # with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
+    #         args.prefix, args.suffix), 'a') as f1:
+    #     for sess in sessions[train_idx:dev_idx]:
+    #         for s in sess:
+    #             h, d, m = extract_time_context_utc(s[2])
+    #             f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
+    #         f1.write('-----\n')
+    # with open(PROCESSED_DATA_DIR + '{}test{}'.format(
+    #         args.prefix, args.suffix), 'a') as f1:
+    #     for sess in sessions[dev_idx:]:
+    #         for s in sess:
+    #             h, d, m = extract_time_context_utc(s[2])
+    #             f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
+    #         f1.write('-----\n')
 
 
 def clean_data(path, file, train_items, users_map, items_map):
@@ -382,6 +393,7 @@ def remove_unseen_data(args):
 
 
 if __name__ == '__main__':
+    tmp = 0
     args = _parse_args()
     # Preprocess data & create train - val - test
     if args.op == 'all':
@@ -389,4 +401,4 @@ if __name__ == '__main__':
         preprocess(args, stream)
 
     split_session(args)
-    remove_unseen_data(args)
+    # remove_unseen_data(args)
