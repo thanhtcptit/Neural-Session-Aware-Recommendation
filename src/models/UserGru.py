@@ -268,18 +268,59 @@ class UserGruModel(BaseModel):
             self._rnn_cell, self._embs['i'],
             sequence_length=self.length,
             dtype=tf.float32)
-        output_states = tf.reshape(output_states, [-1, self._hidden_units])
-        user_embs = tf.reshape(self._embs['u'],
-                               [-1, self._entity_embedding])
-        cf_user = self._feed_forward(
-            user_embs, self._hidden_units, key='ffu')
-        cf_item = self._feed_forward(
-            output_states, self._hidden_units, key='ffi')
+        if 'attention' not in self._input_type:
+            output_states = tf.reshape(output_states, [-1, self._hidden_units])
+            user_embs = tf.reshape(self._embs['u'],
+                                [-1, self._entity_embedding])
+            cf_user = self._feed_forward(
+                user_embs, self._hidden_units, key='ffu')
+            cf_item = self._feed_forward(
+                output_states, self._hidden_units, key='ffi')
         if self._input_type == 'concat':
             final_state = tf.concat([cf_item, cf_user], -1)
         elif self._input_type == 'mul':
             final_state = cf_user * cf_item
         elif self._input_type == 'sum':
+            final_state = cf_user + cf_item
+        elif self._input_type == 'attention':
+            item, user = self._attention(output_states, self._embs['u'], atype=None)
+            item = tf.reshape(item, [-1, self._hidden_units])
+            user = tf.reshape(user, [-1, self._entity_embedding])
+
+            cf_user = self._feed_forward(
+                user, self._hidden_units, key='ffu')
+            cf_item = self._feed_forward(
+                item, self._hidden_units, key='ffi')
+            final_state = tf.concat([cf_item, cf_user], -1)
+        elif self._input_type == 'attention-global':
+            item, user = self._attention_global(output_states, self._embs['u'], atype=None)
+            item = tf.reshape(item, [-1, self._hidden_units])
+            user = tf.reshape(user, [-1, self._entity_embedding])
+
+            cf_user = self._feed_forward(
+                user, self._hidden_units, key='ffu')
+            cf_item = self._feed_forward(
+                item, self._hidden_units, key='ffi')
+            final_state = final_state = tf.concat([cf_item, cf_user], -1)
+        elif self._input_type == 'attention-sum':
+            item, user = self._attention(output_states, self._embs['u'], atype=None)
+            item = tf.reshape(item, [-1, self._hidden_units])
+            user = tf.reshape(user, [-1, self._entity_embedding])
+
+            cf_user = self._feed_forward(
+                user, self._hidden_units, key='ffu')
+            cf_item = self._feed_forward(
+                item, self._hidden_units, key='ffi')
+            final_state = cf_user + cf_item
+        elif self._input_type == 'attention-fixed-sum':
+            item, user = self._attention_global(output_states, self._embs['u'], atype=None)
+            item = tf.reshape(item, [-1, self._hidden_units])
+            user = tf.reshape(user, [-1, self._entity_embedding])
+
+            cf_user = self._feed_forward(
+                user, self._hidden_units, key='ffu')
+            cf_item = self._feed_forward(
+                item, self._hidden_units, key='ffi')
             final_state = cf_user + cf_item
         else:
             print('Unrecognize input type.Exit')
@@ -340,6 +381,8 @@ class UserGruModel(BaseModel):
             final_input = tf.concat(final_input, -1)
         elif atype == 'sum':
             final_input = item_alpha * item + user_alpha * user
+        else:
+            return item_alpha * item, user_alpha * user
         return final_input
 
     def _attention_ew(self, item, user):
@@ -367,6 +410,8 @@ class UserGruModel(BaseModel):
             final_input = item * user
         elif atype == 'sum':
             final_input = item + user
+        else:
+            return item, user
         return final_input
 
     def get_training_vars(self):

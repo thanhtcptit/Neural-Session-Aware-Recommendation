@@ -76,17 +76,18 @@ def run_training(args):
     trainer = UserGruTrainer(sess, model, args, train_loader)
 
     if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index'):
-        while True:
-            print('Already exist a model with the same name.'
-                  'Restore the old model?')
-            choose = input('(y/n): ')
-            if choose != 'y' and choose != 'n':
-                print('Wrong option')
-            else:
-                break
-        if choose == 'y':
-            trainer.load(os.path.join(CHECKPOINT_DIR, args.name + '.ckpt'))
-            args.load_model_config()
+        # while True:
+        #     print('Already exist a model with the same name.'
+        #           'Restore the old model?')
+        #     choose = input('(y/n): ')
+        #     if choose != 'y' and choose != 'n':
+        #         print('Wrong option')
+        #     else:
+        #         break
+        # if choose == 'y':
+
+        trainer.load(os.path.join(CHECKPOINT_DIR, args.name + '.ckpt'))
+        args.load_model_config()
 
     args.save_model_config()
     trainer.run_training()
