@@ -365,24 +365,36 @@ class UserGruModel(BaseModel):
 
     def _attention(self, item, user, atype='concat'):
         with tf.name_scope('attention'):
-            self._Va['i'] = tf.get_variable(shape=[self._entity_embedding],
-                                            name='Va_i', dtype=tf.float32)
-            self._ba['i'] = tf.get_variable(
-                shape=[], name='ba_i', dtype=tf.float32)
-            item_alpha = tf.sigmoid(tf.reduce_sum(tf.cast(
-                item, tf.float32) * self._Va['i'], axis=2) + self._ba['i'])
-            item_alpha = tf.expand_dims(item_alpha, -1)
-            user_alpha = 1 - item_alpha
-        self._alpha = [item_alpha, user_alpha]
+            for x, k in zip([self._hidden_units, self._entity_embedding],
+                            ['i', 'u']):
+                self._Va[k] = tf.get_variable(shape=[x],
+                                              name='Va_' + k, dtype=tf.float32)
+
+            for k in ['i', 'u']:
+                self._ba[k] = tf.get_variable(shape=[], name='ba_' + k,
+                                              dtype=tf.float32)
+            
+        alpha = []
+        for x, k in zip([item, user], ['i', 'u']):
+            alpha.append(tf.sigmoid(tf.reduce_sum(
+                tf.cast(x, tf.float32) * self._Va[k], axis=2) + self._ba[k]))
+
+        self._alpha = []
+        for t in range(self._max_length):
+            wt = []
+            for i in range(2):
+                wt.append(alpha[i][:, t])
+            sum_exp = tf.reduce_sum(tf.exp(wt), axis=0)
+            self._alpha.append([tf.exp(w_) / sum_exp for w_ in wt])
+        self._alpha = tf.transpose(tf.stack(self._alpha), [2, 0, 1])
         final_input = []
+        for i, x in enumerate([item, user]):
+            final_input.append(tf.expand_dims(self._alpha[:, :, i], dim=2) * x)
         if atype == 'concat':
-            for i, x in zip([item_alpha, user_alpha], [item, user]):
-                final_input.append(i * x)
             final_input = tf.concat(final_input, -1)
         elif atype == 'sum':
-            final_input = item_alpha * item + user_alpha * user
-        else:
-            return item_alpha * item, user_alpha * user
+            final_input = final_input[0] + final_input[1]
+
         return final_input
 
     def _attention_ew(self, item, user):
