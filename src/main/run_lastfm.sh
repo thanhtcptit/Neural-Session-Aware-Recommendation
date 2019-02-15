@@ -31,3 +31,7 @@
 # python3 main.py --mode=train --name=UserCF-concat --input=concat --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # python3 main.py --mode=train --name=UserCF-sum --input=sum --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
 # python3 main.py --mode=train --name=UserCF-mul --input=mul --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python3 main.py --mode=train --name=UserAGRU-cf --input=attention --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python3 main.py --mode=train --name=UserAGGRU-cf --input=attention-global --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python3 main.py --mode=train --name=UserAGRU-sum-cf --input=attention-sum --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
+python3 main.py --mode=train --name=UserAGGRU-sum-cf --input=attention-fixed-sum --fusion_type=cf --train_file=clean-lastfm-train --test_file=clean-lastfm-dev;
