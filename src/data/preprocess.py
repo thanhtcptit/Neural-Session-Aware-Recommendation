@@ -1,3 +1,4 @@
+import os
 import sys
 sys.path.append('../..')
 
@@ -117,7 +118,7 @@ def parse_data(args):
             try:
                 usr, item, ts = \
                     line_data[args.pu], line_data[args.pi], line_data[args.pt]
-                if args.time_format is not None:
+                if args.time_format:
                     ts = date2utc(ts, args.time_format)
                 yield (usr, item, ts)
             except IndexError:
@@ -282,6 +283,7 @@ def save_user_session(args, sessions):
             for s in sess:
                 h, d, m = extract_time_context_utc(s[2])
                 f1.write('{},{},{},{},{}\n'.format(s[0], s[1], h, d, m))
+            f1.write('-----\n')
     with open(PROCESSED_DATA_DIR + '{}dev{}'.format(
             args.prefix, args.suffix), 'a') as f1:
         for sess in sessions[train_idx:dev_idx]:
