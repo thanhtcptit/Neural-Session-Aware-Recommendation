@@ -385,7 +385,6 @@ def remove_unseen_data(args):
 
 
 if __name__ == '__main__':
-    tmp = 0
     args = _parse_args()
     # Preprocess data & create train - val - test
     if args.op == 'all':

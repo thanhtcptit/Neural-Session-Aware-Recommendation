@@ -1,3 +1,5 @@
+tensorflow-gpu=1.10
+grpcio
 click
 Sphinx
 coverage

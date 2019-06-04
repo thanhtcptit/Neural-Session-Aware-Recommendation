@@ -65,6 +65,7 @@ def _parse_cmd():
     parser.add_argument('--display_every', type=int, default=500)
     parser.add_argument('--save_every', type=int, default=10000)
     parser.add_argument('--eval_every', type=int, default=1)
+    parser.add_argument('--over_write', type=int, default=1)
     return parser.parse_args()
 
 
@@ -75,17 +76,7 @@ def run_training(args):
     train_loader = DataLoader(args.train_path, args)
     trainer = UserGruTrainer(sess, model, args, train_loader)
 
-    if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index'):
-        # while True:
-        #     print('Already exist a model with the same name.'
-        #           'Restore the old model?')
-        #     choose = input('(y/n): ')
-        #     if choose != 'y' and choose != 'n':
-        #         print('Wrong option')
-        #     else:
-        #         break
-        # if choose == 'y':
-
+    if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index') and not args.over_write:
         trainer.load(os.path.join(CHECKPOINT_DIR, args.name + '.ckpt'))
         args.load_model_config()
 

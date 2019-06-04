@@ -43,6 +43,7 @@ class Args:
         self.display_every = 500
         self.save_every = 10000
         self.eval_every = 1
+        self.over_write = 1
 
     def parse_args(self, args):
         # Running mode
@@ -76,6 +77,7 @@ class Args:
         self.display_every = args.display_every
         self.save_every = args.save_every
         self.eval_every = args.eval_every
+        self.over_write = args.over_write
 
         self.get_data_stats()
 
