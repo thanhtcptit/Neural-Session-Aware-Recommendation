@@ -1,4 +1,4 @@
-Source code for the paper: [Combining User-based and Session-based Recommendations with Recurrent Neural Networks](https://link.springer.com/chapter/10.1007/978-3-030-04167-0_44)
+Source code for the paper: Neural Session-Aware Recommendation
 =====================
 
 How to run
