@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../..')
+sys.path.append('../..')  # noqa
 
 import argparse
 import tensorflow as tf
@@ -30,34 +30,28 @@ def _parse_cmd():
     # Running mode
     parser.add_argument('--mode', choices=['train', 'test'],
                         default='train')
-    parser.add_argument("--name", type=str, default='UserAGru-best')
-    parser.add_argument('--input', choices=['concat', 'concat-context',
-                                            'mul', 'sum', 'attention',
-                                            'attention-sum',
-                                            'attention-fixed-sum',
-                                            'attention-context',
-                                            'cf',
-                                            'attention-global'],
-                        default='concat')
-    parser.add_argument('--fusion_type', choices=['pre', 'post', 'cf'],
+    parser.add_argument("--name", type=str, default='baseline')
+    parser.add_argument('--combination', choices=[
+        'linear', 'linear-context', 'adaptive', 'adaptive-context',
+        'weighted', 'voting'], default='adaptive')
+    parser.add_argument('--fusion_type', choices=['pre', 'post'],
                         default='post')
 
     # Path
-    parser.add_argument('--train_file', type=str, default='clean-train')
-    parser.add_argument('--test_file', type=str,
-                        default=None)
+    parser.add_argument('--train_file', type=str, default='clean-avito-train')
+    parser.add_argument('--test_file', type=str, default='clean-avito-test')
 
     # Hyper params
     parser.add_argument('--cell', choices=['lstm', 'gru', 'rnn'],
                         default='gru')
     parser.add_argument('--num_layers', type=int, default=1)
     parser.add_argument('--entity_emb', type=int, default=100)
-    parser.add_argument('--time_emb', type=int, default=5)
+    parser.add_argument('--context_emb', type=int, default=5)
     parser.add_argument('--hidden_units', type=int, default=100)
 
     # Learning params
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--keep_pr', type=float, default=0.5)
+    parser.add_argument('--keep_pr', type=float, default=0.25)
     parser.add_argument('--num_epoch', type=int, default=20)
     parser.add_argument('--batch_size', type=int, default=50)
 
@@ -76,7 +70,8 @@ def run_training(args):
     train_loader = DataLoader(args.train_path, args)
     trainer = UserGruTrainer(sess, model, args, train_loader)
 
-    if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index') and not args.over_write:
+    if os.path.exists(CHECKPOINT_DIR + args.name + '.ckpt.index') and \
+            not args.over_write:
         trainer.load(os.path.join(CHECKPOINT_DIR, args.name + '.ckpt'))
         args.load_model_config()
 

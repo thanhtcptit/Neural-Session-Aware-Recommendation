@@ -1,5 +1,5 @@
 import sys
-sys.path.append('../..')
+sys.path.append('../..')  # noqa
 
 import json
 import os
@@ -13,7 +13,7 @@ class Args:
         # Running mode
         self.mode = 'train'
         self.name = 'GRU'
-        self.input = 'concat'
+        self.combination = 'apdative'
         self.fusion_type = 'post'
 
         # Data path
@@ -30,13 +30,13 @@ class Args:
         self.cell = 'GRU'
         self.num_layers = 1
         self.entity_embedding = 100
-        self.time_embedding = 5
+        self.context_embedding = 5
         self.hidden_units = 100
 
         # Learning params
         self.learning_rate = 0.001
         self.keep_pr = 1
-        self.num_epoch = 30
+        self.num_epoch = 20
         self.batch_size = 50
 
         # Logging
@@ -49,7 +49,7 @@ class Args:
         # Running mode
         self.mode = args.mode
         self.name = args.name
-        self.input = args.input
+        self.combination = args.combination
         self.fusion_type = args.fusion_type
 
         # Data path
@@ -64,7 +64,7 @@ class Args:
         self.cell = args.cell
         self.num_layers = args.num_layers
         self.entity_embedding = args.entity_emb
-        self.time_embedding = args.time_emb
+        self.context_embedding = args.context_emb
         self.hidden_units = args.hidden_units
 
         # Learning params
@@ -83,12 +83,12 @@ class Args:
 
     def save_model_config(self):
         with open(CHECKPOINT_DIR + self.name + '_config.txt', 'w') as f:
-            f.write(str(self.input) + '\n')
+            f.write(str(self.combination) + '\n')
             f.write(str(self.fusion_type) + '\n')
             f.write(str(self.cell) + '\n')
             f.write(str(self.num_layers) + '\n')
             f.write(str(self.entity_embedding) + '\n')
-            f.write(str(self.time_embedding) + '\n')
+            f.write(str(self.context_embedding) + '\n')
             f.write(str(self.hidden_units))
 
     def load_model_config(self):
@@ -98,12 +98,12 @@ class Args:
             name = self.name[:self.name.rfind('-')]
         with open(CHECKPOINT_DIR + name + '_config.txt', 'r') as f:
             data = f.read().split('\n')
-            self.input, self.fusion_type, self.cell,\
+            self.combination, self.fusion_type, self.cell,\
                 self.num_layers, self.entity_embedding,\
-                self.time_embedding, self.hidden_units = data
+                self.context_embedding, self.hidden_units = data
         self.num_layers = int(self.num_layers)
         self.entity_embedding = int(self.entity_embedding)
-        self.time_embedding = int(self.time_embedding)
+        self.context_embedding = int(self.context_embedding)
         self.hidden_units = int(self.hidden_units)
 
     def get_data_stats(self):
